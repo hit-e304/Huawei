@@ -1,3 +1,5 @@
+import numpy as np
+
 cross_addr = 'cross.txt'
 road_addr = 'road.txt'
 car_addr = 'car.txt'
@@ -70,8 +72,10 @@ def delete(li, index):
     return li_back
 
 def map_graph(cross, road):
+    a = len(cross)
     graph = {}
-    for i in range(len(cross)):
+    array = np.zeros([a, a])
+    for i in range(a):
         cross_i = cross[i]
         cross_else = delete(cross, i)
         connect_i = []
@@ -80,8 +84,7 @@ def map_graph(cross, road):
             for k in [1, 2, 3, 4]:
                 if j[k] in cross_i and j[k] != -1:
                     connect_i.append(j[0])
+                    array[i][j[0]-1] = j[k]
         
         graph[cross_i[0]] = connect_i
-    return graph
-
-
+    return graph, array
