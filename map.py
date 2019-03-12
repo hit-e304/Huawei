@@ -22,50 +22,9 @@ def read_inf(filename):
             out_list.append(out1)
     return out_list
 
-cross = read_inf(cross_addr)
-road = read_inf(road_addr)
-car = read_inf(car_addr)
-
-def find_path(graph, start, end, path=[]):
-        path = path + [start]
-        if start == end:
-            return path
-        # if not graph.has_key(start):
-        #     return None
-        for node in graph[start]:
-            if node not in path:
-                newpath = find_path(graph, node, end, path)
-                if newpath: return newpath
-        return None
-
-def find_all_paths(graph, start, end, path=[]):
-    path = path + [start]
-    if start == end:
-        return [path]
-    # if not graph.has_key(start):
-    #     return []
-    paths = []
-    for node in graph[start]:
-        if node not in path:
-            newpaths = find_all_paths(graph, node, end, path)
-            for newpath in newpaths:
-                paths.append(newpath)
-    return paths
-
-def find_shortest_path(graph, start, end, path=[]):
-    path = path + [start]
-    if start == end:
-        return path
-    # if not graph.has_key(start):
-    #     return None
-    shortest = None
-    for node in graph[start]:
-        if node not in path:
-            newpath = find_shortest_path(graph, node, end, path)
-            if newpath:
-                if not shortest or len(newpath) < len(shortest):
-                    shortest = newpath
-    return shortest
+cross_inf = read_inf(cross_addr)
+road_inf = read_inf(road_addr)
+car_inf = read_inf(car_addr)
 
 def delete(li, index):
     li_back = li[:index] + li[index+1:]
@@ -83,8 +42,39 @@ def map_graph(cross, road):
         for j in cross_else:
             for k in [1, 2, 3, 4]:
                 if j[k] in cross_i and j[k] != -1:
-                    connect_i.append(j[0])
-                    array[i][j[0]-1] = j[k]
+                    connect_i.append(j[0])  
+                    array[i][j[0]-1] = int(j[k])
         
         graph[cross_i[0]] = connect_i
     return graph, array
+
+class Car():
+    def __init__(self, input_info, **kwargs):
+        self.num = input_info[0]
+        self.init_node = input_info[1]
+        self.final_node = input_info[2] 
+        self.speed = input_info[3]
+        self.init_time = input_info[4]
+
+        self.cur_road = 0
+        self.cur_channel = 0
+        self.cur_pos = 0
+
+class Road:
+    def __init__(self, input_info, **kwargs):
+        self.num = input_info[0]
+        self.len = input_info[1]
+        self.max_speed = input_info[2]
+        self.channel_num = input_info[3]
+        self.is_duplex = input_info[6]
+        self.channel = np.zeros([self.channel_num, self.len])
+
+# road init
+names = locals()
+for i in range(len(road_inf)):
+    names['road_' + str(road_inf[i][0])] = Road(road_inf[i])
+
+# car init
+names = locals()
+for i in range(len(car_inf)):
+    names['car_' + str(car_inf[i][0])] = Car(car_inf[i])
