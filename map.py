@@ -22,13 +22,11 @@ def read_inf(filename):
             out_list.append(out1)
     return out_list
 
-cross_inf = read_inf(cross_addr)
-road_inf = read_inf(road_addr)
-car_inf = read_inf(car_addr)
 
 def delete(li, index):
     li_back = li[:index] + li[index+1:]
     return li_back
+
 
 def map_graph(cross, road):
     a = len(cross)
@@ -48,7 +46,8 @@ def map_graph(cross, road):
         graph[cross_i[0]] = connect_i
     return graph, array
 
-class Car():
+
+class Car:
     def __init__(self, input_info, **kwargs):
         self.num = input_info[0]
         self.init_node = input_info[1]
@@ -56,9 +55,20 @@ class Car():
         self.speed = input_info[3]
         self.init_time = input_info[4]
 
+        self.start_flag = 0
+        self.running_flag = 0
+        self.in_node_flag = 0
         self.cur_road = 0
         self.cur_channel = 0
         self.cur_pos = 0
+        self.cur_speed = 0
+    
+    # def update_pos(self, channel):
+    #     # init
+    #     if self.start_flag == 0:
+    #         self.cur_road = self.init_node
+    #         if  
+
 
 class Road:
     def __init__(self, input_info, **kwargs):
@@ -69,12 +79,35 @@ class Road:
         self.is_duplex = input_info[6]
         self.channel = np.zeros([self.channel_num, self.len])
 
-# road init
-names = locals()
-for i in range(len(road_inf)):
-    names['road_' + str(road_inf[i][0])] = Road(road_inf[i])
+        self.is_full = 0
+        self.car_account = 0
+    
+    # def update_inf(self, ):
 
-# car init
-names = locals()
-for i in range(len(car_inf)):
-    names['car_' + str(car_inf[i][0])] = Car(car_inf[i])
+
+# class Cross:
+#     def __init__(self, ):
+    
+#     def update_pos():
+        
+
+
+
+if __name__ == '__main__':
+    cross_inf = read_inf(cross_addr)
+    road_inf = read_inf(road_addr)
+    car_inf = read_inf(car_addr)
+
+    car_namespace = []
+    road_namespace = []
+
+    # road init
+    names = locals()
+    for i in range(len(road_inf)):
+        names['road_' + str(road_inf[i][0])] = Road(road_inf[i])
+        road_namespace.append('road_' + str(road_inf[i][0]))
+
+    # car init
+    for i in range(len(car_inf)):
+        names['car_' + str(car_inf[i][0])] = Car(car_inf[i])
+        car_namespace.append('car_' + str(car_inf[i][0]))
