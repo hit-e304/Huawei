@@ -29,9 +29,17 @@ def delete(li, index):
 
 
 def map_graph(cross, road):
+    """
+    input: cross, cross_inf; road, road_inf
+    """
     a = len(cross)
     graph = {}
-    array = np.zeros([a, a])
+    array = np.zeros([a, a]) + 10000 - 10000 * np.eye(a)
+    road_list = []
+
+    for i in range(len(road)):
+        road_list.append(road[i][0])
+
     for i in range(a):
         cross_i = cross[i]
         cross_else = delete(cross, i)
@@ -40,8 +48,8 @@ def map_graph(cross, road):
         for j in cross_else:
             for k in [1, 2, 3, 4]:
                 if j[k] in cross_i and j[k] != -1:
-                    connect_i.append(j[0])  
-                    array[i][j[0]-1] = int(j[k])
+                    connect_i.append(j[0])
+                    array[i][j[0]-1] = road[road_list.index(j[k])][1]
         
         graph[cross_i[0]] = connect_i
     return graph, array
@@ -50,24 +58,40 @@ def map_graph(cross, road):
 class Car:
     def __init__(self, input_info, **kwargs):
         self.num = input_info[0]
-        self.init_node = input_info[1]
-        self.final_node = input_info[2] 
+        self.init_cross = input_info[1]
+        self.final_cross = input_info[2] 
         self.speed = input_info[3]
         self.init_time = input_info[4]
 
         self.start_flag = 0
         self.running_flag = 0
-        self.in_node_flag = 0
+        self.in_cross_flag = 0
         self.cur_road = 0
+        self.next_road = 0
         self.cur_channel = 0
         self.cur_pos = 0
         self.cur_speed = 0
+
+    # step为按规则计算后能走的步数，由规则层提供;
+    # cross_avail_flag为判断当前路口是否允许进入（非满）
+    def update_pos_cross(self, step, cross_avail_flag, ):
+        # init
+        if self.start_flag == 0:
+            self.next_road = self.init_cross
+        else:
+            self.next_road = self.cal_next_road()
+
+        if cross_avail_flag:
+            pass
+
+    def update_pos_road(self, step):
+        pass
     
-    # def update_pos(self, channel):
-    #     # init
-    #     if self.start_flag == 0:
-    #         self.cur_road = self.init_node
-    #         if  
+    def whether_in_cross(self):
+        pass
+    
+    def cal_next_road(self):
+        return 0
 
 
 class Road:
@@ -82,15 +106,21 @@ class Road:
         self.is_full = 0
         self.car_account = 0
     
-    # def update_inf(self, ):
+    def update_inf(self):
+        pass
 
 
-# class Cross:
-#     def __init__(self, ):
+class Cross:
+    def __init__(self, input_info, **kwargs):
+        self.num = input_info[0]
+        self.road_north = input_info[1]
+        self.road_east = input_info[2]
+        self.road_south = input_info[3]
+        self.road_west = input_info[4]
     
-#     def update_pos():
+    def update_pos(self):
+        pass
         
-
 
 
 if __name__ == '__main__':
@@ -100,6 +130,7 @@ if __name__ == '__main__':
 
     car_namespace = []
     road_namespace = []
+    cross_namespace = []
 
     # road init
     names = locals()
@@ -111,3 +142,8 @@ if __name__ == '__main__':
     for i in range(len(car_inf)):
         names['car_' + str(car_inf[i][0])] = Car(car_inf[i])
         car_namespace.append('car_' + str(car_inf[i][0]))
+    
+    # cross init
+    for i in range(len(cross_inf)):
+        names['cross_' + str(cross_inf[i][0])] = Cross(cross_inf[i])
+        cross_namespace.append('cross_' + str(cross_inf[i][0]))
