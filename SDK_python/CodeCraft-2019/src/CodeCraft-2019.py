@@ -98,12 +98,11 @@ def Dijkstra_minpath(start, end, matrix):
     return path
 
 
-def all_car_path(map_array, map_road_array, car_inf, car_time_sche):
+def all_car_path(map_array, map_road_array, car_inf):
 
     # map_len = len(map_array)
     car_len = len(car_inf)
 
-    # start = time.time()
     path = []
     path_road = []
     for i in range(car_len):
@@ -111,16 +110,14 @@ def all_car_path(map_array, map_road_array, car_inf, car_time_sche):
         path_center = []
         for j in range(len(path)-1):
             path_center.append(int(map_road_array[path[j]][path[j+1]]))
-        
-        time = car_time_sche[car_inf[i][0]]
-        path_road.append(tuple([car_inf[i][0], max(car_inf[i][4], time)] + path_center))
-    # end = time.time()
-    # print(end - start)
+        path_road.append(path_center)
+
     return path_road
 
 
+# TODO: jv li jin de xian fa che
 # calculate start time of each car by speed
-def time_split(car_inf, car_per_sec):
+def time_split(car_inf, car_per_sec, path_road):
     max_speed = 0
     car_divide_speed = []
     car_time_sche = {}
@@ -153,6 +150,14 @@ def time_split(car_inf, car_per_sec):
     return car_time_sche
 
 
+def combine_time_path(car_inf, car_time_sche, path_road):
+    time_path = []
+    for i in range(path_road):
+        time = car_time_sche[car_inf[i][0]]
+        time_path.append(tuple([car_inf[i][0], max(car_inf[i][4], time)] + path_road))
+    return time_path
+
+
 def main():
 
     car_path = sys.argv[1]
@@ -164,12 +169,12 @@ def main():
     road_inf = read_inf(road_path)
     car_inf = read_inf(car_path)
 
-    _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
-    car_time_sche = time_split(car_inf, car_per_sec)
-    answer = all_car_path(map_loss_array, map_road_array, car_inf, car_time_sche)
+    _, _, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
+    path_road = all_car_path(map_loss_array, map_road_array, car_inf)
+    car_time_sche = time_split(car_inf, car_per_sec, path_road)
+    answer = combine_time_path(car_inf, car_time_sche, path_road)
     # answer = all_car_path(map_dis_array, map_road_array, car_inf, car_time_sche)
     
-
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(x) for x in answer))
 
