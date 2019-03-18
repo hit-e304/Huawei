@@ -2,14 +2,15 @@
     "python.unitTest.unittestArgs": [
         "-v",
         "-s",
-        ".",
+        "./SDK_python",
         "-p",
         "*test.py"
     ],
-    "python.unitTest.pyTestEnabled": true,
+    "python.unitTest.pyTestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
-    "python.unitTest.unittestEnabled": false,
+    "python.unitTest.unittestEnabled": true,
     "python.unitTest.pyTestArgs": [
         "."
-    ]
+    ],
+    "python.pythonPath": "/anaconda3/envs/py3/bin/python"
 }
