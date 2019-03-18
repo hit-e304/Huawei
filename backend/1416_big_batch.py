@@ -130,10 +130,9 @@ def time_split(car_inf, car_per_sec):
         car_divide_speed[i[3] - 1].append(i[0])
     
     # calculate start time
-    time = 0
+    time = 1
     for k in range(max_speed):
-        time += 1
-        #TODO: this can to be changed to better function, can't higher than 0.01
+        #TODO: this can to be changed to better function
         delta = 1 + (k-1) * 0.01
         cur_group = car_divide_speed[-k]
         if not cur_group:
@@ -142,8 +141,8 @@ def time_split(car_inf, car_per_sec):
         
         for i in range(cur_amount):
             car_time_sche[cur_group[i]] = time
-            if (i+1) % int(car_per_sec * delta) == 0:
-                time += 1
+            if (i+1) % int(car_per_sec * delta * 10) == 0:
+                time += 10
 
     return car_time_sche
 

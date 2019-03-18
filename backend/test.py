@@ -34,8 +34,9 @@ def map_graph(cross, road):
     """
     a = len(cross)
     graph = {}
-    array = np.zeros([a, a]) + 10000 - 10000 * np.eye(a)
+    array_dis = np.zeros([a, a]) + 10000 - 10000 * np.eye(a)
     array_road = np.zeros([a, a])
+    array_loss = np.zeros([a, a]) + 10000 - 10000 * np.eye(a)
     road_list = []
     cross_list  = []
 
@@ -46,19 +47,23 @@ def map_graph(cross, road):
         cross_list.append(cross[i][0])
 
     for i in road:
-        name = i[0]
-        length = i[1]
-        start_id = i[4] - 1
-        end_id = i[5] - 1
+        name, length, channel, speed_lim, start_id, end_id, is_dux = i ###### is_dux = i[6]???
+        start_id -= 1
+        end_id -= 1
+        loss = length - 0 * channel - 0 * speed_lim + 20
 
-        if i[6] == 1:
-            array[start_id][end_id] = array[end_id][start_id] = length
+        if is_dux == 1:
+            array_dis[start_id][end_id] = array_dis[end_id][start_id] = length
             array_road[start_id][end_id] = array_road[end_id][start_id] = name
+            #TODO: design of loss 
+            array_loss[start_id][end_id] = array_loss[end_id][start_id] = loss
         else:
-            array[start_id][end_id] = length
+            array_dis[start_id][end_id] = length
             array_road[start_id][end_id] = name
+            #TODO: design of loss
+            array_loss[start_id][end_id] = loss
 
-    return graph, array, array_road, cross_list, road_list
+    return graph, array_dis, array_road, array_loss, cross_list, road_list
 
 
 def Dijkstra_minpath(start, end, matrix):
@@ -133,8 +138,8 @@ def time_split(car_inf, car_per_sec):
     time = 0
     for k in range(max_speed):
         time += 1
-        #TODO: this can to be changed to better function, can't higher than 0.01
-        delta = 1 + (k-1) * 0.01
+        #TODO: this can to be changed to better function
+        delta = 1 + (k-1) * 0.02
         cur_group = car_divide_speed[-k]
         if not cur_group:
             continue
@@ -159,9 +164,11 @@ def main():
     road_inf = read_inf(road_path)
     car_inf = read_inf(car_path)
 
-    _, map_array, map_road_array, _, _ = map_graph(cross_inf, road_inf)
+    _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
     car_time_sche = time_split(car_inf, car_per_sec)
-    answer = all_car_path(map_array, map_road_array, car_inf, car_time_sche)
+    answer = all_car_path(map_loss_array, map_road_array, car_inf, car_time_sche)
+    # answer = all_car_path(map_dis_array, map_road_array, car_inf, car_time_sche)
+    
 
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(x) for x in answer))
