@@ -65,35 +65,6 @@ def map_graph(cross, road):
     return graph, array_dis, array_road, array_loss, cross_list, road_list
 
 
-def create_map(road_inf, cross_inf):
-    cross_num = len(cross_inf)
-    x_list = []
-    y_list = []
-    map_ord = [0, 0] * cross_num
-
-    for i in range(cross_num):
-        if cross_inf[i][3] == cross_inf[i][4] == 0:
-            map_ord[i] = [0, 0]
-            x_list.append(i)
-            y_list.append(i)
-
-    continue_flag_x = 1
-    continue_flag_y = 1
-    while(continue_flag_x):
-        cur_x = x_list[-1]
-        for i in range(cross_num):
-            if cross_inf[i][4] == cross_inf[cur_x][2]:
-                map_ord[i] = [road_inf[], 0]
-
-    
-
-    
-    map_ord[0] = [0, 0]
-
-    for i in road_inf:
-
-
-
 def record_road(batch, road_use_list, road_percent_list, road_id_bias):
     for i in batch:
         for j in i[2:]:
@@ -231,7 +202,7 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        loss = length + 40000 * use_rate / channel / min(speed_lim, speed) / length + 10
+        loss = length * (1 + 300 * use_rate / channel / min(speed_lim, speed)) + 10
 
         if is_dux == 1:
             array_loss[start_id][end_id] = array_dis[end_id][start_id] = loss

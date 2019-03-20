@@ -4,7 +4,7 @@ import time
 from kmeans import kMeans
 
 
-car_per_sec = 22 # can't higher than 25, 24 is best 
+car_per_sec = 22 # can't higher than 22
 interval_time = 10
 
 
@@ -65,35 +65,6 @@ def map_graph(cross, road):
     return graph, array_dis, array_road, array_loss, cross_list, road_list
 
 
-def create_map(road_inf, cross_inf):
-    cross_num = len(cross_inf)
-    x_list = []
-    y_list = []
-    map_ord = [0, 0] * cross_num
-
-    for i in range(cross_num):
-        if cross_inf[i][3] == cross_inf[i][4] == 0:
-            map_ord[i] = [0, 0]
-            x_list.append(i)
-            y_list.append(i)
-
-    continue_flag_x = 1
-    continue_flag_y = 1
-    while(continue_flag_x):
-        cur_x = x_list[-1]
-        for i in range(cross_num):
-            if cross_inf[i][4] == cross_inf[cur_x][2]:
-                map_ord[i] = [road_inf[], 0]
-
-    
-
-    
-    map_ord[0] = [0, 0]
-
-    for i in road_inf:
-
-
-
 def record_road(batch, road_use_list, road_percent_list, road_id_bias):
     for i in batch:
         for j in i[2:]:
@@ -141,7 +112,7 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
     elif speed in [5, 6]:
         car_per_batch = int(car_per_sec * interval_time * 1)
     else:
-        car_per_batch = int(car_per_sec * interval_time * 1.1) 
+        car_per_batch = int(car_per_sec * interval_time * 1) 
 
     batch_num = int(group_len / car_per_batch) + 1
     # for i in group:
@@ -222,16 +193,13 @@ def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, ti
     return path_road_time
 
 
-def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed):
+def update_loss(array_loss, array_dis, road_inf, road_percent_list):
 
     for i in road_inf:
-        name, length, channel, speed_lim, start_id, end_id, is_dux = i
+        _, length, channel, speed_lim, start_id, end_id, is_dux = i
         start_id -= 1
         end_id -= 1
-        name -= road_id_bias
-        use_rate = road_percent_list[name]
-        # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        loss = length + 40000 * use_rate / channel / min(speed_lim, speed) / length + 10
+        loss = length * (1 + 1 / channel / channel) - 1 * speed_lim + 20
 
         if is_dux == 1:
             array_loss[start_id][end_id] = array_dis[end_id][start_id] = loss
@@ -286,9 +254,7 @@ def main():
             time += interval_time
             answer += batch_path_time
             road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
-            print(road_use_list)
-            map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed)
-
+            map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list)
 
 
     # path_road = all_car_path(map_loss_array, map_road_array, car_inf)
