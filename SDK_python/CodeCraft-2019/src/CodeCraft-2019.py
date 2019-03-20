@@ -5,7 +5,7 @@ from kmeans import kMeans
 
 
 car_per_sec = 21 # can't higher than 21
-interval_time = 10
+interval_time = 8
 
 
 def read_inf(filename):
