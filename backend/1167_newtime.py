@@ -3,9 +3,9 @@ import numpy as np
 import time
 
 
-car_per_sec = 26
-interval_time = 1
-car_in_map = 2000
+car_per_sec = 22
+interval_time = 5
+car_in_map = 2300
 
 
 def read_inf(filename):
@@ -112,7 +112,7 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
     elif speed in [5, 6]:
         car_per_batch = int(car_per_sec * interval_time * 1)
     else:
-        car_per_batch = int(car_per_sec * interval_time * 1) 
+        car_per_batch = int(car_per_sec * interval_time * 1.1) 
 
     batch_num = int(group_len / car_per_batch) + 1
     # for i in group:
@@ -127,6 +127,14 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
                 break
         group_divide_time.append(cur_batch)
     
+    # for k in range(max_speed):
+
+    #     delta = 1 + (k-1) * 0.01
+    #     cur_group = car_divide_speed[-k]
+    #     if not cur_group:
+    #         continue
+    #     cur_amount = len(cur_group)
+
     return group_divide_time
 
 
@@ -190,7 +198,7 @@ def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, ro
     return path_road_time, final_time, all_time
 
 
-def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed, cross_loss):
+def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed):
 
     for i in road_inf:
         name, length, channel, speed_lim, start_id, end_id, is_dux = i
@@ -199,7 +207,7 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        loss = length * (1 / min(speed_lim, speed) + 30 * use_rate / channel) + 0.1 * max(cross_loss[start_id+1], cross_loss[end_id+1])
+        loss = length * (1 + 300 * use_rate / channel / min(speed_lim, speed)) + 10
 
         if is_dux == 1:
             array_loss[start_id][end_id] = array_dis[end_id][start_id] = loss
@@ -216,54 +224,6 @@ def update_car(final_time, time):
             new_final_time.append(i)
     
     return new_final_time
-
-
-def car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias):
-    path = []
-    car_time = []
-    return_car_time = []
-
-    for car in cur_group:
-        car_id = car - car_id_bias
-        path = dijkstra_minpath(car_inf[car_id][1]-1, car_inf[car_id][2]-1, map_dis_array)
-        path_center = []
-        a = len(path)
-    
-        for j in range(a-1):
-            path_center.append(int(map_road_array[path[j]][path[j+1]]))
-
-        run_time = 0
-        for i in path_center[2:]:
-            run_time += road_inf[i-road_id_bias][1] / min(speed, road_inf[i-road_id_bias][2])
-        
-        car_time.append([car, run_time])
-    
-    car_time = sorted(car_time, key=(lambda x:x[1]), reverse=True)
-    a = len(car_time)
-    for i in range(a):
-        return_car_time.append(car_time[i][0])
-
-    return return_car_time
-
-
-def cal_cross_loss(cross_inf, road_inf):
-    road_flow = {}
-    cross_loss = {}
-    for road in road_inf:
-        road_flow[road[0]] = road[3] * road[3] / road[2]
-    for cross in cross_inf:
-        loss = 0
-        for i in [1, 2, 3, 4]:
-            if cross[i] == -1:
-                continue
-            for j in [1, 2, 3, 4]:
-                if cross[j] == -1:
-                    continue
-                loss += abs(road_flow[cross[i]] - road_flow[cross[j]])
-        
-        cross_loss[cross[0]] = loss
-    return cross_loss
-
 
 
 def main():
@@ -283,7 +243,6 @@ def main():
     car_inf = read_inf(car_path)
 
     _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
-    cross_loss = cal_cross_loss(cross_inf, road_inf)
     car_divide_speed = speed_split(car_inf)
 
     time = 1
@@ -307,9 +266,8 @@ def main():
         cur_group = car_divide_speed[speed]
         if not cur_group:
             continue 
-
-        sort_group = car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias)
-        group_divide_time = time_split(sort_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
+        
+        group_divide_time = time_split(cur_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
         
         for batch in group_divide_time:
             batch_len = len(batch)
@@ -321,7 +279,7 @@ def main():
             time += interval_time
             answer += batch_path_time
             road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
-            map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed, cross_loss)
+            map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed)
 
 
 
