@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/dqn/SDK_C++/CodeCraft-2019/CodeCraft-2019.cpp
+iostream
+-
+fstream
+-
+vector
+-
+algorithm
+-
+
