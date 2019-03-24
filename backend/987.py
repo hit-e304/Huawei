@@ -1,225 +1,11 @@
 import sys
 import numpy as np
 import time
-import simulator
 
 
 car_per_sec = 26
 interval_time = 1
 car_in_map = 2500
-
-TIME = [0]
-CARDISTRIBUTION = [0,0,0]
-CARNAMESPACE,ROADNAMESPACE,CROSSNAMESPACE = [],[],[]
-CROSSDICT,CARDICT,ROADDICT ={},{},{}
-ROUTEMAP ={}
-
-
-class Car():
-    def __init__(self, carInfLine_):
-        #### input parameters ####
-        self.id_, self.startId_, self.endId_, self.speed_, self.startTime_ = carInfLine_
-        #### simulate parameters ####
-        # car state: 0,1,2,3 in carport,waiting,finishing,end
-        self.presentRoad, self.nextCrossId = None, self.startId_
-        self.state, self.x, self.y = 0, 0, 0
-        self.moveX, self.moveY = 0, 0
-        self.isWaiting = False
-        self.route, self.routeIndex, self.start_time = None, None, None
-    
-    def simulateInit(self, planTime, route):
-        self.startTime_, self.route, self.routeIndex = planTime, route, 0
-
-    def updatePlan(self, planLine):
-        # car in carport or waiting, change it's start road and replan
-        # TODO: may cause bug if car is waiting !!!
-        if self.state == 0:
-            self.start_time, self.route = planLine[1], planLine[2:]
-        elif self.state in [1, 2]:
-            cur_routeIndex = self.routeIndex
-            cur_road = self.route[cur_routeIndex]
-            self.start_time = planLine[1]
-            self.route = planLine[2:]
-            self.routeIndex = self.route.index(cur_road)
-    
-    def updateParameter(self, state, x=None, y=None, presentRoad=None, roadSpeed=None, nextCrossId=None):
-        if self.state != 0 or presentRoad is not None:
-            self.state = state
-        if presentRoad is not None and self.state != 0 and self.routeIndex < self.route.__len__():
-            self.routeIndex += 1
-        self.x = x if x is not None else self.x
-        self.y = y if y is not None else self.y
-        self.presentRoad = presentRoad if presentRoad is not None else self.presentRoad
-        if nextCrossId is not None:
-            self.nextCrossId = nextCrossId
-            toX, toY = CROSSDICT[self.endId_].__getPar__('loc')
-            nextCrossX, nextCrossY = CROSSDICT[nextCrossId].__getPar__('loc')
-            self.deltaX, self.deltaY = toX - nextCrossX, toY - nextCrossY
-
-    def __getPar__(self, par_name):
-        if par_name == 'id':
-            return self.id_
-        elif par_name == 'startId':
-            return self.startId_
-        elif par_name == 'endId':
-            return self.endId_
-        elif par_name == 'speed':
-            return self.speed_
-        elif par_name == 'startTime':
-            return self.startTime_
-        elif par_name == 'state':
-            return self.state
-        elif par_name == 'x':
-            return self.x
-        elif par_name == 'y':
-            return self.y
-        elif par_name == 'presentRoad':
-            return self.nextCrossId
-        elif par_name == 'nextCrossId':
-            return self.nextCrossId
-        elif par_name == 'deltaX':
-            return self.deltaX
-        elif par_name == 'deltaY':
-            return self.deltaY
-        elif par_name == 'isWaiting':
-            return self.isWaiting
-        elif par_name == 'route':
-            return self.route
-        elif par_name == 'routeIndex':
-            return self.routeIndex
-        elif par_name == 'v':
-            return min(self.speed_, ROADDICT[self.presentRoad].__getPar__('speed'))
-        elif par_name == 'distance':
-            return abs(self.deltaX) + abs(self.deltaY)
-        elif par_name == 'nextRoad':
-            try:
-                return self.route[self.routeIndex]
-            except:
-                return -1
-        else:
-            print('Wrong key name !!!')
-
-
-class Road():
-    def __init__(self, roadInfLine_):
-        #### input parameters ####
-        self.id_, self.length_, self.speed_, self.channel_, self.startId_, self.endId_, self.isDuplex_ = roadInfLine_
-        self.roadFlow = self.channel_ * self.length_
-        #### simulate parameters ####
-        self.forwardTube = {i: [None for j in range(self.channel_)] for i in range(self.length_)}
-        if self.isDuplex_:
-            self.backwardTube = {i: [None for j in range(self.channel_)] for i in range(self.length_)}
-        else:
-            self.backwardTube = None
-        # BUG: delete some pars
-        self.provideTube, self.receiveTube = None, None
-        self.px, self.py, self.provideNum, self.receiveNum = None, None, None, None
-        self.provideDone = None
-    
-    def chooseDirection(self. crossId):
-        if crossId == self.startId_:
-            return 'backward'
-        elif crossId == self.endId_:
-            return 'forward'
-        else:
-            print('wrong crossID in chooseDirection')
-    # BUG: May cause bug
-    def setBucket(self, crossId):
-        direction= self.chooseDirection(crossId)
-        if dirction == 'forward':
-            self.provideTube, self.px, self.py = self.forwardTube, 0, 0
-            if self.isDuplex_:
-                self.receiveTube = self.backwardTube
-            else:
-                self.receiveTube = None
-        else:
-            self.receiveTube = self.forwardTube
-            if self.isDuplex_:
-                self.provideTube, self.px, self.py = self.backwardTube, 0, 0
-            else:
-                self.provideTube, self.px, self.py = None, None, None
-    
-    def stepInit(self):
-        self.provideTube, self.receiveTube = None, None
-        self.px, self.py = None, None
-        self.provideDone = None
-
-        for i in range(self.length_):
-            for j in range(self.channel_):
-                if self.forwardTube[i][j] is not None:
-                    car = CARDICT[self.forwardTube[i][j]]
-                    car.updateParameter(state=1)
-                if self.isDuplex_:
-                    if self.backwardTube[i][j] is not None:
-                        car = CARDICT[self.backwardTube[i][j]]
-                        car.updateParameter(state=1)
-        # first step
-        for channel in range(self.channel_):
-            self.updateChannel(self.forwardTube, channel)
-            if self.isDuplex_:
-                self.updateChannel(self.backwardTube, channel)
-    
-    def updateChannel(self, tube, channel):
-        previousCar, previousState = -1, 1
-        for i in range(self.length_):
-            if tube[i][channel] is not None:
-                car = CARDICT[tube[i][channel]]
-                v = car.__getPar__('v')
-                if car.__getPar__('state') == 2:
-                    previousCar, previousState = i, 2
-                elif i - v > previousCar:
-                    tube[i-v][channel] = tube[i][channel]
-                    tube[i][channel] = None
-                    previousCar, previousState = i - v, 2
-                elif previousState == 2:
-                    if previousCar + 1 != i:
-                        tube[previousCar + 1][channel] = tube[i][channel]
-                        tube[i][channel] = None
-                    previousCar, previousState = previousCar + 1, 2
-                    car.updateParameter(state=2, x=previousCar)
-                else:
-                    previousCar, previousState = i, 1
-    
-    def searchCar(self, start, end, channel, tube):
-        for i in range(end, st, -1):
-            if tube[i][channel] is not None:
-                return i
-        return -1
-    
-    def firstPriorityCar(self):
-        while True:
-            if self.px == self.length_:
-                break
-            carId = self.provideTube[self.px][self.py]
-            if carId is not None and CARDICT[carId].__getPar__('state') != 2:
-                car = CARDICT[carId]
-                left = car.__getPar__('v')
-                if left > self.px and self.searchCar(-1, self.px-1, self.py, self.provideTube) == -1:
-                    return self.provideTube[self.px][self.py]
-            if self.py == self.channel_ - 1:
-                self.px, self.py = self.px + 1, 0
-            else:
-                self.py += 1
-        self.provideDone = True
-        return -1
-    
-    def firstPriorityCarAct(self, action):
-        if action == 1:
-            self.provideTube[self.px][self.py] = None
-            self.provideNum -= 1
-        elif action == 1:
-            carId = self.provideTube[self.px][self.py]
-            self.provideTube[self.px][self.py] = None
-            self.provideTube[0][self.py] = carId
-        self.updateChannel(self.provideTube, self.py)
-    
-    def receiveCar(self, carId):
-        car = CARDICT[carId]
-        leftX = max(min(self.speed_, car.__getPar__('speed')) - car.__getPar__('x'), 0)
-        nextCrossId = 
-
-
-
 
 
 def read_inf(filename):
@@ -239,6 +25,11 @@ def read_inf(filename):
 
             out_list.append(out1)
     return out_list
+
+
+def delete(li, index):
+    li_back = li[:index] + li[index+1:]
+    return li_back
 
 
 def map_graph(cross, road):
@@ -306,6 +97,8 @@ def speed_split(car_inf):
     return output_dic
 
 
+# TODO: jv li jin de xian fa che
+# calculate start time of each car by position
 def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position):
 
     cur_batch = []
@@ -369,6 +162,8 @@ def dijkstra_minpath(start, end, matrix):
     return path
 
 
+# update 3.19: change all to batch planning
+# car_id_bias: car_id0 - 0; batch: [car_id1, car_id2, ...]
 def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_bias, road_inf, speed, time, final_time, all_time):
 
     path = []
@@ -478,6 +273,11 @@ def main():
     cross_path = sys.argv[3]
     answer_path = sys.argv[4]
 
+    # cross_path = 'cross.txt'
+    # road_path = 'road.txt'
+    # car_path = 'car.txt'
+    # answer_path = 'answer.txt'
+
     cross_inf = read_inf(cross_path)
     road_inf = read_inf(road_path)
     car_inf = read_inf(car_path)
@@ -486,10 +286,15 @@ def main():
     cross_loss = cal_cross_loss(cross_inf, road_inf)
     car_divide_speed = speed_split(car_inf)
 
-    time, all_time, car_id_bias, road_id_bias = 1, 0, car_inf[0][0], road_inf[0][0]
+    time = 1
+    all_time = 0
+    car_id_bias = car_inf[0][0]
+    road_id_bias = road_inf[0][0]
     car_position = {}
-    answer, speed_list, final_time = [], [], []
-    road_use_list, road_percent_list = [0] * len(road_inf), [0] * len(road_inf)
+    answer = []
+    speed_list = []
+    final_time = []
+    road_use_list = road_percent_list = [0] * len(road_inf)
 
     # 1. divide by speed
     # 2. calculate time by position (TODO)
@@ -501,8 +306,10 @@ def main():
     for speed in speed_list:
         cur_group = car_divide_speed[speed]
         if not cur_group:
-            continue
-        group_divide_time = time_split(cur_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
+            continue 
+
+        sort_group = car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias)
+        group_divide_time = time_split(sort_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
         
         for batch in group_divide_time:
             batch_len = len(batch)
@@ -516,6 +323,13 @@ def main():
             road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
             map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed, cross_loss)
 
+
+
+    # path_road = all_car_path(map_loss_array, map_road_array, car_inf)
+    # car_time_sche = time_split(car_inf, car_per_sec, path_road)
+    # answer = combine_time_path(car_inf, car_time_sche, path_road)
+    # answer = all_car_path(map_dis_array, map_road_array, car_inf, car_time_sche)
+    
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(tuple(x)) for x in answer))
 

@@ -34,6 +34,9 @@ def id2pos(i):
 
 
 def map(cross_inf, road_inf, line, road_id_bias):
+
+    mngr = plt.get_current_fig_manager()
+    mngr.window.wm_geometry("+380+310")
         
     x = []
     y = []
@@ -56,7 +59,7 @@ def map(cross_inf, road_inf, line, road_id_bias):
         y0 = [b0, b1]
 
         plt.plot(x0, y0, color='b')
-    plt.show()
+    plt.ion()
 
 
 cross_inf = read_inf(cross_path)
@@ -67,12 +70,14 @@ answer = read_inf(answer_path)
 batch = 10
 for i in range(1000):
 
-    batch_road = answer[batch * i : (batch*i+ batch)]
+    batch_road = answer[batch * i + 5000 : (batch*i+ batch) + 5000]
     for line in batch_road:
 
         line_read = line[2:]
         map(cross_inf, road_inf, line_read, road_id_bias)
-        plt.pause(1)
-        plt.close()
-
+        plt.pause(0.25)
+        input()
+       
+        # plt.close()
+        plt.clf()
     
