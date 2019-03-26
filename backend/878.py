@@ -3,9 +3,9 @@ import numpy as np
 import time
 
 
-car_per_sec = 37
+car_per_sec = 39
 interval_time = 1
-car_in_map = 2000
+car_in_map = 2937
 
 
 def read_inf(filename):
@@ -199,7 +199,7 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        loss = length * (1 / min(speed_lim, speed) + 50 * use_rate / channel) + 0.3 * max(cross_loss[start_id+1], cross_loss[end_id+1])
+        loss = length * (1 / min(speed_lim, speed) + 82.22 * use_rate / channel) + 0.29 * max(cross_loss[start_id+1], cross_loss[end_id+1])
 
         if is_dux == 1:
             array_loss[start_id][end_id] = array_loss[end_id][start_id] = loss
@@ -334,6 +334,4 @@ def main():
 
 
 if __name__ == "__main__":
-    a = time.time()
     main()
-    print(time.time() - a)

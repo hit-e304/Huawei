@@ -345,10 +345,10 @@ class CROSS(object):
         self.x, self.y = 0, 0
         self.mapX,self.mapY = 0,0
         # priorityMap
-        self.priorityMap = {north_: {east_: 1, south_: 2, west_: 0}, \
-                            east_: {south_: 1, west_: 2, north_: 0}, \
-                            south_: {west_: 1, north_: 2, east_: 0}, \
-                            west_: {north_: 1, east_: 2, south_: 0}}
+        self.priorityMap = {north_: {east_: 0, south_: 2, west_: 1}, \
+                            east_: {south_: 0, west_: 2, north_: 1}, \
+                            south_: {west_: 0, north_: 2, east_: 1}, \
+                            west_: {north_: 0, east_: 2, south_: 1}}
         # relationship with roads
         self.providerIndex, self.receiverIndex, self.validRoadIndex = [], [], []
         for index, roadId in enumerate(self.roadIds):
@@ -779,7 +779,7 @@ def main():
         line=line.strip()[1:-1].split(',')
         carId = int(line[0])
         planTime_ = int(line[1])
-        route = [int(roadId) for roadId in  line[2:]]
+        route = [int(roadId) for roadId in line[2:]]
         CARDICT[carId].simulateInit(planTime_,route)
     CARDISTRIBUTION[0] = CARNAMESPACE.__len__()
     # **** cross initialization ****#
