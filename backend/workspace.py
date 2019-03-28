@@ -670,11 +670,23 @@ def a_star(start_id, end_id, cross_map):
     openSet, closeSet = [], []
     openSet.append(start_id)
     comeFrom = {}
-    gScore, fscore = {}
-    gScore[start_id], fscore[start_id] = 0, calc_heuristic(start_id, end_id)
+    gScore, fScore = {}
+    gScore[start_id], fScore[start_id] = 0, calc_heuristic(start_id, end_id)
+    path = []
 
     while openSet is not empty:
-        cur_cross = 
+        curCrossId = min(fScore, key=fScore.get) # find the cross with smallest fScore
+        if curCrossId == end_id:
+            return path
+        # put curCrossId into closeSet
+        openSet.remove(curCrossId)
+        closeSet.append(curCrossId)
+
+        # TODO: Find neighbor of curCrossId
+        for neighbor in 
+
+
+
 
 
 def cal_car_path(map_loss_array, map_road_array, car_inf, batch, road_bias, road_inf, speed, time):
@@ -848,7 +860,7 @@ def createCrossMap(cross_inf, road_inf, road_id_bias):
         reverseList = reversed(finishCross)
         for cross in reverseList:
             crossId, roadLine = cross_inf[cross-1][0], cross_inf[cross-1][1:] 
-            curX, curY = mapDic[crossId]
+            curX, curY = mapDic[crossId] # curX, curY: Int
             for i, road in enumerate(roadLine):
                 if road != -1:
                     roadInf = road_inf[road-road_id_bias]
@@ -889,6 +901,18 @@ def createCrossMap(cross_inf, road_inf, road_id_bias):
     return mapDic, map_lim
 
 
+def printCrossLoss():
+    '''
+    Usage: Print loss of each cross into text
+    '''
+    cross_loss_output = []
+    for line in road_inf:
+        cross_loss_output.append([line[0], cross_loss[line[4]-1][line[5]-1], cross_loss[line[5]-1][line[4]-1]])
+    with open(loss_path, 'w') as fp:
+        fp.write('\n'.join(str(tuple(x)) for x in cross_loss_output)) 
+    print(cross_loss)
+
+
 def main():
 
     car_path = sys.argv[1]
@@ -905,6 +929,7 @@ def main():
     answer, speed_list = [], []
     roadUseDic = {}
     crossMap = createCrossMap(cross_inf, road_inf, road_id_bias)
+
     # 1. divide by speed
     # 2. calculate time by position (TODO)
     # 3. loop: calculate path ; record road ; update map (TODO)
@@ -918,12 +943,6 @@ def main():
             continue
 
         cross_loss = cal_cross_loss(cross_inf, road_inf, map_road_array, speed)
-        # cross_loss_output = []
-        # for line in road_inf:
-        #     cross_loss_output.append([line[0], cross_loss[line[4]-1][line[5]-1], cross_loss[line[5]-1][line[4]-1]])
-        # with open(loss_path, 'w') as fp:
-        #     fp.write('\n'.join(str(tuple(x)) for x in cross_loss_output)) 
-        # print(cross_loss)
 
         speed_group = car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias)
         group_divide_time = time_split(speed_group, car_inf, car_per_sec, time0, interval_time, speed, car_id_bias, car_position)
@@ -939,13 +958,9 @@ def main():
             map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, roadUseDic, road_id_bias, speed, cross_loss)
             batch_path_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, road_id_bias, road_inf, speed, time0)
             CARREADYDICT = car_plan(batch_path_time)
-            # print(batch_path_time)
             for carId in CARREADYDICT:
                 CROSSDICT[CARDICT[carId].__getPar__('startId')].carportInitial(CARDICT[carId].__getPar__('startTime'), carId)
             dead_flag = simulateStep()
-            # print(map_loss_array[27][35])
-            # print(map_loss_array[28][36])
-            # print(map_loss_array[29][37])
             if dead_flag:
                 break
             time0 += 1
