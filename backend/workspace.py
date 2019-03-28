@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import time
+import math
 
 
 car_per_sec = 25
@@ -29,6 +30,39 @@ def read_inf(filename):
     return out_list
 
 
+def map_graph(cross, road):
+    """
+    input: cross, cross_inf; road, road_inf
+    """
+    a = len(cross)
+    graph = {}
+    array_dis = np.zeros([a, a]) + 999999 - 999999 * np.eye(a)
+    array_road = np.zeros([a, a])
+    road_list = []
+    cross_list  = []
+
+    for i in range(len(road)):
+        road_list.append(road[i][0])
+    
+    for i in range(len(cross)):
+        cross_list.append(cross[i][0])
+
+    for i in road:
+        name, length, channel, speed_lim, start_id, end_id, is_dux = i ###### is_dux = i[6]???
+        start_id -= 1
+        end_id -= 1
+
+        if is_dux == 1:
+            array_dis[start_id][end_id] = array_dis[end_id][start_id] = length
+            array_road[start_id][end_id] = array_road[end_id][start_id] = name
+        else:
+            array_dis[start_id][end_id] = length
+            array_road[start_id][end_id] = name
+    array_loss = array_dis
+
+    return graph, array_dis, array_road, array_loss, cross_list, road_list
+
+
 TIME = [0]
 CARDISTRIBUTION = [0,0,0]
 CARNAMESPACE,ROADNAMESPACE,CROSSNAMESPACE = [],[],[]
@@ -49,7 +83,7 @@ class Car():
         self.route, self.routeIndex, self.start_time = None, None, None
     
     def simulateInit(self, planTime, route):
-        self.startTime_, self.route, self.routeIndex = planTime, route, 0
+        self.start_time, self.route, self.routeIndex = planTime, route, 0
 
     # def updatePlan(self, planLine):
     #     # car in carport or waiting, change it's start road and replan
@@ -144,6 +178,9 @@ class Road():
         self.provideDone = None
 
     def calcongestion(self):
+        '''
+        Usage: find cars in each side of road
+        '''
         forwardCarNum, backwardCarNum = 0, 0
         for i in range(self.length_):
             for j in range(self.channel_):
@@ -508,6 +545,9 @@ class Cross():
 
 
 def simulateStep():
+    """
+    Usage: Step simulation, including: initial Cross, initial Road, update Cross(Road), input new Cars
+    """
 
     for crossId in CROSSNAMESPACE:
         CROSSDICT[crossId].setDone(False)
@@ -536,39 +576,6 @@ def simulateStep():
         CROSSDICT[crossId].outOfCarport()
     
     return dead_sign
-
-
-def map_graph(cross, road):
-    """
-    input: cross, cross_inf; road, road_inf
-    """
-    a = len(cross)
-    graph = {}
-    array_dis = np.zeros([a, a]) + 999999 - 999999 * np.eye(a)
-    array_road = np.zeros([a, a])
-    road_list = []
-    cross_list  = []
-
-    for i in range(len(road)):
-        road_list.append(road[i][0])
-    
-    for i in range(len(cross)):
-        cross_list.append(cross[i][0])
-
-    for i in road:
-        name, length, channel, speed_lim, start_id, end_id, is_dux = i ###### is_dux = i[6]???
-        start_id -= 1
-        end_id -= 1
-
-        if is_dux == 1:
-            array_dis[start_id][end_id] = array_dis[end_id][start_id] = length
-            array_road[start_id][end_id] = array_road[end_id][start_id] = name
-        else:
-            array_dis[start_id][end_id] = length
-            array_road[start_id][end_id] = name
-    array_loss = array_dis
-
-    return graph, array_dis, array_road, array_loss, cross_list, road_list
 
 
 def speed_split(car_inf):
@@ -651,6 +658,23 @@ def dijkstra_minpath(start, end, matrix):
                     path_array[j] = temp_array[j] = path_array[i] + matrix[i][j]
                     path_parent[j] = i
     return path
+
+
+def calc_heuristic(n1, n2, cross_map=cross_map):
+    n1X, n1Y = cross_map[n1]
+    n2X, n2Y = cross_map[n2]
+    return (abs(n1X - n2X) + abs(n1Y - n2Y))
+
+
+def a_star(start_id, end_id, cross_map):
+    openSet, closeSet = [], []
+    openSet.append(start_id)
+    comeFrom = {}
+    gScore, fscore = {}
+    gScore[start_id], fscore[start_id] = 0, calc_heuristic(start_id, end_id)
+
+    while openSet is not empty:
+        cur_cross = 
 
 
 def cal_car_path(map_loss_array, map_road_array, car_inf, batch, road_bias, road_inf, speed, time):
@@ -774,7 +798,7 @@ def getRoadCrowd(road_use_dic):
     return road_use_dic 
 
 
-def infInit(crossPath, roadPath, carPath):
+def inf_init(crossPath, roadPath, carPath):
     crossInf = read_inf(crossPath)
     roadInf = read_inf(roadPath)
     carInf = read_inf(carPath)
@@ -796,7 +820,7 @@ def infInit(crossPath, roadPath, carPath):
     return crossInf, roadInf, carInf
 
 
-def carplan(pathTimeInf):
+def car_plan(pathTimeInf):
     readyDic = {}
     for line in pathTimeInf:
         carId = int(line[0])
@@ -806,16 +830,73 @@ def carplan(pathTimeInf):
         readyDic[carId] = CARDICT[carId]
     return readyDic
 
+
+def createCrossMap(cross_inf, road_inf, road_id_bias):
+    '''
+    Usage: Create cross map in xoy sys
+    Input: cross_inf / road_inf:list[int]  road_id_bias:int
+    output: mapDic:dict{[int]}  map_lim:list[int]
+    '''
+    crossLen = 1
+    initX, initY = 0, 0
+    maxX, maxY = 0, 0
+    minX, minY =0, 0
+    mapDic = {cross_inf[0][0]:[initX, initY]}
+    finishCross = [cross_inf[0][0]]
+    crossNum = len(cross_inf)
+    while len(finishCross) < crossNum:
+        reverseList = reversed(finishCross)
+        for cross in reverseList:
+            crossId, roadLine = cross_inf[cross-1][0], cross_inf[cross-1][1:] 
+            curX, curY = mapDic[crossId]
+            for i, road in enumerate(roadLine):
+                if road != -1:
+                    roadInf = road_inf[road-road_id_bias]
+                else: 
+                    continue
+                crossFrom, crossTo = roadInf[4], roadInf[5]
+                if crossFrom == crossId and crossTo not in finishCross:
+                    if i == 0:
+                        mapDic[crossTo] = [curX, curY+crossLen]
+                        maxY = max(maxY, curY+crossLen)
+                    elif i == 1:
+                        mapDic[crossTo] = [curX+crossLen, curY]
+                        maxX = max(curX+crossLen, maxX)
+                    elif i == 2:
+                        mapDic[crossTo] = [curX, curY-crossLen]
+                        minY = min(maxY, curY-crossLen)
+                    elif i == 3:
+                        mapDic[crossTo] = [curX-crossLen, curY]
+                        minX = min(minX, curX-crossLen)
+                    finishCross.append(crossTo)
+                elif crossTo == crossId and crossFrom not in finishCross:
+                    if i == 0:
+                        mapDic[crossFrom] = [curX, curY+crossLen]
+                        maxY = max(maxY, curY+crossLen)
+                    elif i == 1:
+                        mapDic[crossFrom] = [curX+crossLen, curY]
+                        maxX = max(curX+crossLen, maxX)
+                    elif i == 2:
+                        mapDic[crossFrom] = [curX, curY-crossLen]
+                        minY = min(maxY, curY-crossLen)
+                    elif i == 3:
+                        mapDic[crossFrom] = [curX-crossLen, curY]
+                        minX = min(minX, curX-crossLen)
+                    finishCross.append(crossFrom)
+                else:
+                    continue
+    map_lim = [maxX, minX, maxY, minY]
+    return mapDic, map_lim
+
+
 def main():
 
     car_path = sys.argv[1]
     road_path = sys.argv[2]
     cross_path = sys.argv[3]
     answer_path = sys.argv[4]
-    loss_path = 'loss.txt'
 
-    cross_inf, road_inf, car_inf = infInit(cross_path, road_path, car_path)
-
+    cross_inf, road_inf, car_inf = inf_init(cross_path, road_path, car_path)
     _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
     car_divide_speed = speed_split(car_inf)
 
@@ -823,7 +904,7 @@ def main():
     car_position = {}
     answer, speed_list = [], []
     roadUseDic = {}
-
+    crossMap = createCrossMap(cross_inf, road_inf, road_id_bias)
     # 1. divide by speed
     # 2. calculate time by position (TODO)
     # 3. loop: calculate path ; record road ; update map (TODO)
@@ -857,7 +938,7 @@ def main():
             roadUseDic = getRoadCrowd(roadUseDic)
             map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, roadUseDic, road_id_bias, speed, cross_loss)
             batch_path_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, road_id_bias, road_inf, speed, time0)
-            CARREADYDICT = carplan(batch_path_time)
+            CARREADYDICT = car_plan(batch_path_time)
             # print(batch_path_time)
             for carId in CARREADYDICT:
                 CROSSDICT[CARDICT[carId].__getPar__('startId')].carportInitial(CARDICT[carId].__getPar__('startTime'), carId)

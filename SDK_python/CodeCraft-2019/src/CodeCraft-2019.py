@@ -3,10 +3,11 @@ import numpy as np
 import time
 
 
-car_per_sec = 37
+car_per_sec = 50.79
+car_in_map = 3500
+delta1 = 60.23
+delta2 = 0.65
 interval_time = 1
-car_in_map = 2000
-
 
 def read_inf(filename):
     out_list = []
@@ -94,6 +95,7 @@ def speed_split(car_inf):
     output_dic = {}
     for i in range(max_speed):
         output_dic[i+1] = car_divide_speed[i]
+    # print(output_dic)
     return output_dic
 
 
@@ -106,7 +108,7 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
     group_len = len(group)
 
     if speed in [1, 2]:
-        car_per_batch = car_per_sec * interval_time
+        car_per_batch = int(car_per_sec * interval_time)
     elif speed in [3, 4]:
         car_per_batch = int(car_per_sec * interval_time * 1.1)
     elif speed in [5, 6]:
@@ -199,7 +201,7 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        loss = length * (1 / min(speed_lim, speed) + 50 * use_rate / channel) + 0.3 * max(cross_loss[start_id+1], cross_loss[end_id+1])
+        loss = length * (1 / min(speed_lim, speed) + delta1 * use_rate / channel) + delta2 * max(cross_loss[start_id+1], cross_loss[end_id+1])
 
         if is_dux == 1:
             array_loss[start_id][end_id] = array_loss[end_id][start_id] = loss
@@ -334,6 +336,4 @@ def main():
 
 
 if __name__ == "__main__":
-    a = time.time()
     main()
-    print(time.time() - a)

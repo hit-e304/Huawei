@@ -19,7 +19,7 @@ class CAR(object):
     def __init__(self,id_,from_,to_,speed_,planTime_):
         # **** statistic parameters ****#
         self.id_, self.from_, self.to_, self.speed_, self.planTime_ = id_, from_, to_, speed_, planTime_
-        self.carColor = [int(value) for value in np.random.random_integers(0, 255, [3])]
+        self.carColor = [int(value) for value in np.random.randint(0, 255, [3])]
         # **** dynamic parameters ****#
         self.state,self.x,self.y = 0,0,0
         self.presentRoad, self.nextCrossId = None,self.from_
@@ -538,10 +538,10 @@ class simulation(object):
         print("time:%d"%TIME[0])
         for crossId in CROSSNAMESPACE:
             CROSSDICT[crossId].setDone(False)
-        print("pre-movement...")
+        # print("pre-movement...")
         for road in ROADNAMESPACE:
             ROADDICT[road].stepInit()
-        print("while loop...")
+        # print("while loop...")
         unfinishedCross = CROSSNAMESPACE
         while unfinishedCross.__len__() > 0:
             self.dead = True
@@ -557,7 +557,7 @@ class simulation(object):
             if self.dead:
                 print("dead lock in", unfinishedCross)
                 return
-        print("car pulling away from carport")
+        # print("car pulling away from carport")
         for i in range(CROSSNAMESPACE.__len__()):
             crossId = CROSSNAMESPACE[i]
             for roadId in CROSSDICT[crossId].__validRoad__():

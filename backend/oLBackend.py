@@ -3,11 +3,9 @@ import numpy as np
 import time
 
 
-car_per_sec = 29
+car_per_sec = 37
 interval_time = 1
 car_in_map = 2000
-delta1 = 80
-delta2 = 5
 
 
 def read_inf(filename):
@@ -27,11 +25,6 @@ def read_inf(filename):
 
             out_list.append(out1)
     return out_list
-
-
-def delete(li, index):
-    li_back = li[:index] + li[index+1:]
-    return li_back
 
 
 def map_graph(cross, road):
@@ -96,7 +89,6 @@ def speed_split(car_inf):
     output_dic = {}
     for i in range(max_speed):
         output_dic[i+1] = car_divide_speed[i]
-    # print(output_dic)
     return output_dic
 
 
@@ -109,7 +101,7 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
     group_len = len(group)
 
     if speed in [1, 2]:
-        car_per_batch = int(car_per_sec * interval_time)
+        car_per_batch = car_per_sec * interval_time
     elif speed in [3, 4]:
         car_per_batch = int(car_per_sec * interval_time * 1.1)
     elif speed in [5, 6]:
@@ -167,30 +159,41 @@ def dijkstra_minpath(start, end, matrix):
 
 # update 3.19: change all to batch planning
 # car_id_bias: car_id0 - 0; batch: [car_id1, car_id2, ...]
-def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_bias, road_inf, speed, time, final_time, all_time):
+def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_bias, 
+                road_inf, speed, time, final_time, cross_map, map_lim):
 
     path = []
     path_road_time = []
     
     for i in batch:
         car_id = i - car_id_bias
-        path = dijkstra_minpath(car_inf[car_id][1]-1, car_inf[car_id][2]-1, map_loss_array)
+        start_id, end_id = car_inf[car_id][1], car_inf[car_id][2]
+        # cur_cross: [crossId]
+        cur_cross = findCross(cross_map, start_id, end_id, map_lim)
+        cur_len = len(cur_cross)
+        cur_loss = np.zeros([cur_len, cur_len])
+        print(cur_cross)
+        print(cur_loss)
+        for i, cross1 in enumerate(cur_cross):
+            for j, cross2 in enumerate(cur_cross):
+                cur_loss[i][j] = map_loss_array[cross1-1][cross2-1]
+        
+        path = dijkstra_minpath(start_id-1, end_id-1, cur_loss)
         path_center = []
         a = len(path)
     
         path_center.append(car_inf[car_id][0])
         path_center.append(max(car_inf[car_id][4], time))
         for j in range(a-1):
-            path_center.append(int(map_road_array[path[j]][path[j+1]]))
+            path_center.append(map_road_array[cur_loss[path[j]]-1][cur_loss[path[j+1]]-1])
         path_road_time.append(path_center)
 
         run_time = 0
         for i in path_center[2:]:
             run_time += road_inf[i-road_bias][1] / min(speed, road_inf[i-road_bias][2])
         final_time.append(int(run_time) + 1 + time)
-        all_time += run_time
 
-    return path_road_time, final_time, all_time
+    return path_road_time, final_time
 
 
 def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed, cross_loss):
@@ -202,7 +205,7 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        loss = length * (1 / min(speed_lim, speed) + delta1 * use_rate / channel) + delta2 * max(cross_loss[start_id+1], cross_loss[end_id+1])
+        loss = length * (1 / min(speed_lim, speed) + 50 * use_rate / channel) + 0.3 * max(cross_loss[start_id+1], cross_loss[end_id+1])
 
         if is_dux == 1:
             array_loss[start_id][end_id] = array_loss[end_id][start_id] = loss
@@ -250,6 +253,10 @@ def car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_a
 
 
 def cal_cross_loss(cross_inf, road_inf):
+    '''
+    TODO: calculate with different distance
+    Usage: Calculate cross loss
+    '''
     road_flow = {}
     cross_loss = {}
     for road in road_inf:
@@ -268,17 +275,97 @@ def cal_cross_loss(cross_inf, road_inf):
     return cross_loss
 
 
+def createCrossMap(cross_inf, road_inf, road_id_bias):
+    '''
+    Usage: Create cross map in xoy sys
+    Input: cross_inf / road_inf:list[int]  road_id_bias:int
+    output: mapDic:dict{[int]}  map_lim:list[int]
+    '''
+    crossLen = 1
+    initX, initY = 0, 0
+    maxX, maxY = 0, 0
+    minX, minY =0, 0
+    mapDic = {cross_inf[0][0]:[initX, initY]}
+    finishCross = [cross_inf[0][0]]
+    crossNum = len(cross_inf)
+    while len(finishCross) < crossNum:
+        reverseList = reversed(finishCross)
+        for cross in reverseList:
+            crossId, roadLine = cross_inf[cross-1][0], cross_inf[cross-1][1:] 
+            curX, curY = mapDic[crossId]
+            for i, road in enumerate(roadLine):
+                if road != -1:
+                    roadInf = road_inf[road-road_id_bias]
+                else: 
+                    continue
+                crossFrom, crossTo = roadInf[4], roadInf[5]
+                if crossFrom == crossId and crossTo not in finishCross:
+                    if i == 0:
+                        mapDic[crossTo] = [curX, curY+crossLen]
+                        maxY = max(maxY, curY+crossLen)
+                    elif i == 1:
+                        mapDic[crossTo] = [curX+crossLen, curY]
+                        maxX = max(curX+crossLen, maxX)
+                    elif i == 2:
+                        mapDic[crossTo] = [curX, curY-crossLen]
+                        minY = min(maxY, curY-crossLen)
+                    elif i == 3:
+                        mapDic[crossTo] = [curX-crossLen, curY]
+                        minX = min(minX, curX-crossLen)
+                    finishCross.append(crossTo)
+                elif crossTo == crossId and crossFrom not in finishCross:
+                    if i == 0:
+                        mapDic[crossFrom] = [curX, curY+crossLen]
+                        maxY = max(maxY, curY+crossLen)
+                    elif i == 1:
+                        mapDic[crossFrom] = [curX+crossLen, curY]
+                        maxX = max(curX+crossLen, maxX)
+                    elif i == 2:
+                        mapDic[crossFrom] = [curX, curY-crossLen]
+                        minY = min(maxY, curY-crossLen)
+                    elif i == 3:
+                        mapDic[crossFrom] = [curX-crossLen, curY]
+                        minX = min(minX, curX-crossLen)
+                    finishCross.append(crossFrom)
+                else:
+                    continue
+    map_lim = [maxX, minX, maxY, minY]
+    return mapDic, map_lim
+
+
+def findCross(cross_map, start_id, end_id, map_lim):
+    '''
+    Usage: Find cross for calculate car from start_id to end_id
+    Input: cross_map:dict[int]  start_id / end_id:int  map_lim:list[int]
+    Output: cross_include:list[int]
+    '''
+    cross_include = []
+    start_x, start_y = cross_map[start_id]
+    end_x, end_y = cross_map[end_id]
+
+    max_x = min(max(start_x, end_x) + 1, map_lim[0])
+    min_x = max(min(start_x, end_x) - 1, map_lim[1])
+    max_y = min(max(start_y, end_y) + 1, map_lim[2])
+    min_y = max(min(start_y, end_y) - 1, map_lim[3])
+
+    for cross in cross_map:
+        if min_x <= cross_map[cross][0] <= max_x and min_y <= cross_map[cross][1] <= max_y:
+            cross_include.append(cross)
+
+    return cross_include
+
+
 def main():
 
-    # car_path = sys.argv[1]
-    # road_path = sys.argv[2]
-    # cross_path = sys.argv[3]
-    # answer_path = sys.argv[4]
+    car_path = sys.argv[1]
+    road_path = sys.argv[2]
+    cross_path = sys.argv[3]
+    answer_path = sys.argv[4]
 
-    cross_path = '../SDK_python/CodeCraft-2019/config/cross.txt'
-    road_path = '../SDK_python/CodeCraft-2019/config/road.txt'
-    car_path = '../SDK_python/CodeCraft-2019/config/car.txt'
-    answer_path = '../SDK_python/CodeCraft-2019/config/answer.txt'
+    # cross_path = 'cross.txt'
+    # road_path = 'road.txt'
+    # car_path = 'car.txt'
+    # answer_path = 'answer.txt'
 
     cross_inf = read_inf(cross_path)
     road_inf = read_inf(road_path)
@@ -289,7 +376,6 @@ def main():
     car_divide_speed = speed_split(car_inf)
 
     time = 1
-    all_time = 0
     car_id_bias = car_inf[0][0]
     road_id_bias = road_inf[0][0]
     car_position = {}
@@ -297,7 +383,7 @@ def main():
     speed_list = []
     final_time = []
     road_use_list = road_percent_list = [0] * len(road_inf)
-
+    crossMap, mapLim = createCrossMap(cross_inf, road_inf, road_id_bias)
     # 1. divide by speed
     # 2. calculate time by position (TODO)
     # 3. loop: calculate path ; record road ; update map (TODO)
@@ -310,6 +396,7 @@ def main():
         if not cur_group:
             continue 
 
+        # sort_group = car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias)
         group_divide_time = time_split(cur_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
         
         for batch in group_divide_time:
@@ -318,12 +405,20 @@ def main():
                 time += 1
                 final_time = update_car(final_time, time)
             
-            batch_path_time, final_time, all_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_id_bias, road_inf, speed, time, final_time, all_time)
+            batch_path_time, final_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, 
+                        road_id_bias, road_inf, speed, time, final_time, crossMap, mapLim)
             time += interval_time
             answer += batch_path_time
             road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
             map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed, cross_loss)
 
+
+
+    # path_road = all_car_path(map_loss_array, map_road_array, car_inf)
+    # car_time_sche = time_split(car_inf, car_per_sec, path_road)
+    # answer = combine_time_path(car_inf, car_time_sche, path_road)
+    # answer = all_car_path(map_dis_array, map_road_array, car_inf, car_time_sche)
+    
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(tuple(x)) for x in answer))
 
@@ -331,4 +426,4 @@ def main():
 if __name__ == "__main__":
     a = time.time()
     main()
-    print(time.time()-a)
+    print(time.time() - a)

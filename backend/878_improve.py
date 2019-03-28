@@ -103,7 +103,7 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
     group_len = len(group)
 
     if speed in [1, 2]:
-        car_per_batch = car_per_sec * interval_time
+        car_per_batch = int(car_per_sec * interval_time)
     elif speed in [3, 4]:
         car_per_batch = int(car_per_sec * interval_time * 1.1)
     elif speed in [5, 6]:
@@ -188,7 +188,9 @@ def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, ro
 
 
 def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed, cross_loss):
-
+    """
+    update: change loss function
+    """
     for i in road_inf:
         name, length, channel, speed_lim, start_id, end_id, is_dux = i
         start_id -= 1
@@ -243,6 +245,9 @@ def car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_a
 
 
 def cal_cross_loss(cross_inf, road_inf, map_road_array):
+    """
+    update: calculate loss with each side
+    """
     road_flow = {}
     a = len(cross_inf)
     map_cross_loss = np.zeros([a, a])
@@ -272,17 +277,18 @@ def cal_cross_loss(cross_inf, road_inf, map_road_array):
                 map_cross_loss[i][j] = loss
     return map_cross_loss
 
+
 def main():
 
-    car_path = sys.argv[1]
-    road_path = sys.argv[2]
-    cross_path = sys.argv[3]
-    answer_path = sys.argv[4]
+    # car_path = sys.argv[1]
+    # road_path = sys.argv[2]
+    # cross_path = sys.argv[3]
+    # answer_path = sys.argv[4]
 
-    # cross_path = 'cross.txt'
-    # road_path = 'road.txt'
-    # car_path = 'car.txt'
-    # answer_path = 'answer.txt'
+    cross_path = '../SDK_python/CodeCraft-2019/config/cross.txt'
+    road_path = '../SDK_python/CodeCraft-2019/config/road.txt'
+    car_path = '../SDK_python/CodeCraft-2019/config/car.txt'
+    answer_path = '../SDK_python/CodeCraft-2019/config/answer.txt'
 
     cross_inf = readInf(cross_path)
     road_inf = readInf(road_path)
@@ -314,8 +320,7 @@ def main():
         if not cur_group:
             continue 
 
-        sort_group = car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias)
-        group_divide_time = time_split(sort_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
+        group_divide_time = time_split(cur_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
         
         for batch in group_divide_time:
             batch_len = len(batch)
@@ -341,4 +346,6 @@ def main():
 
 
 if __name__ == "__main__":
+    a = time.time()
     main()
+    print(time.time() - a)
