@@ -1,0 +1,5 @@
+Script started on Mon Mar 18 10:23:59 2019
+[?1034hbash-3.2$ readline -n "$0"
+bash: readline: command not found
+bash-3.2$ readline -n "$0"[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[Ksudo spctl --master-disable[C[C[C[C[C[C[C[C[C[C[Ksudo spctl --master-disable[2Pmaster-disable--master-disable[C[C[C[C[C[C[C[C[C[C[Kreadlink -n "$0"
+bash-3.2$ 

@@ -1,1 +1,0 @@
-/Library/Developer/CommandLineTools/usr/bin/c++   -O3 -Wall -std=c++11 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/CodeCraft-2019.dir/CodeCraft-2019.cpp.o  -o /Users/mowenhao/Projects/Huawei/SDK_C++/bin/CodeCraft-2019 

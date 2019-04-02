@@ -1,14 +1,19 @@
 import sys
 import numpy as np
 import time
+from numba import jit, njit
+import heap
 
-car_per_sec = 35
+
+car_per_sec = 34
 interval_time = 1
-car_in_map = 1986
-delta1 = 7.3
+car_in_map = 3500
+delta1 = 75.44
 delta2 = 0.0
-delta3 = 5
+delta3 = 5.45
 init_num = 300
+car_dic, road_dic, cross_dic = {}, {}, {}
+car_con_dic, road_con_dic, cross_con_dic = {}, {}, {}
 
 
 def readInf(filename):
@@ -30,7 +35,67 @@ def readInf(filename):
     return outList
 
 
-def map_graph(cross, road):
+def changeId(input_inf, name):
+    car_bias = 10000
+    road_bias = 5000
+    cross_bias = 1
+    len_inf = len(input_inf)
+
+    if name == 0:
+        for i in range(len_inf):
+            car_dic[input_inf[i][0]] = i + car_bias
+            car_con_dic[i+car_bias] = input_inf[i][0]
+            input_inf[i][0] = i + car_bias
+            
+    elif name == 1:
+        for i in range(len_inf):
+            road_dic[input_inf[i][0]] = i + road_bias
+            road_con_dic[i+road_bias] = input_inf[i][0]
+            input_inf[i][0] = i + road_bias
+    
+    elif name == 2:
+        for i in range(len_inf):
+            cross_dic[input_inf[i][0]] = i + cross_bias
+            cross_con_dic[i+cross_bias] = input_inf[i][0]
+            input_inf[i][0] = i + cross_bias
+
+    return input_inf
+
+
+def changeCar(input_inf):
+    for car in input_inf:
+        car[1] = cross_dic[car[1]]
+        car[2] = cross_dic[car[2]]
+    return input_inf
+
+
+def changeRoad(input_inf):
+    for road in input_inf:
+        road[4] = cross_dic[road[4]]
+        road[5] = cross_dic[road[5]]
+    return input_inf
+
+
+def changeCross(input_inf):
+    for cross in input_inf:
+        for i in [1, 2, 3, 4]:
+            if cross[i] == -1:
+                continue
+            else:
+                cross[i] = road_dic[cross[i]]
+    return input_inf
+
+
+def changeAnswer(input_inf):
+    for line in input_inf:
+        len_line = len(line)
+        line[0] = car_con_dic[line[0]]
+        for i in range(2, len_line):
+            line[i] = road_con_dic[line[i]]
+    return input_inf
+
+
+def mapGraph(cross, road):
     """
     input: cross, cross_inf; road, road_inf
     """
@@ -49,6 +114,14 @@ def map_graph(cross, road):
 
     for i in road:
         name, length, channel, speed_lim, start_id, end_id, is_dux = i ###### is_dux = i[6]???
+        if start_id not in graph.keys():
+            graph[start_id] = {}
+        graph[start_id][end_id] = length
+        if is_dux:
+            if end_id not in graph.keys():
+                graph[end_id] = {}
+            graph[end_id][start_id] = length 
+
         start_id -= 1
         end_id -= 1
 
@@ -129,55 +202,58 @@ def time_split(group, car_inf, car_per_sec, time, interval_time, speed, car_id_b
     return group_divide_time
 
 
-def dijkstra_minpath(start, end, matrix):
-    inf = 10000
-    length = len(matrix)
-    path_array = []
-    temp_array = []
-    path_array.extend(matrix[start])
-    temp_array.extend(matrix[start])
-    temp_array[start] = inf
-    already_traversal = [start]
-    path_parent = [start] * length
+def dijkstra(G, start):  ###dijkstra算法
+    INF = 999999999
 
-    i = start
-    while(i != end):
-        i = temp_array.index(min(temp_array))
-        temp_array[i] = inf
-        path = []
-        path.append(i)
-        k = i
-        while (path_parent[k] != start):
-            path.append(path_parent[k])
-            k = path_parent[k]
-        path.append(start)
-        path.reverse()
-        already_traversal.append(i)
-        for j in range(length):
-            if j not in already_traversal:
-                if (path_array[i] + matrix[i][j]) < path_array[j]:
-                    path_array[j] = temp_array[j] = path_array[i] + matrix[i][j]
-                    path_parent[j] = i
+    dis = dict((key, INF) for key in G)  # start到每个点的距离
+    dis[start] = 0
+    vis = dict((key, False) for key in G)  # 是否访问过，1位访问过，0为未访问
+    ###堆优化
+    pq = []  # 存放排序后的值
+    heap.heappush(pq, [dis[start], start])
+
+    t3 = time.time()
+    path = dict((key, [start]) for key in G)  # 记录到每个点的路径
+    while len(pq) > 0:
+        v_dis, v = heap.heappop(pq)  # 未访问点中距离最小的点和对应的距离
+        if vis[v] == True:
+            continue
+        vis[v] = True
+        p = path[v].copy()  # 到v的最短路径
+        for node in G[v]:  # 与v直接相连的点
+            new_dis = dis[v] + float(G[v][node])
+            if new_dis < dis[node] and (not vis[node]):  # 如果与v直接相连的node通过v到src的距离小于dis中对应的node的值,则用小的值替换
+                dis[node] = new_dis  # 更新点的距离
+                #  dis_un[node][0] = new_dis    #更新未访问的点到start的距离
+                heap.heappush(pq, [dis[node], node])
+                temp = p.copy()
+                temp.append(node)  # 更新node的路径
+                path[node] = temp  # 将新路径赋值给temp
+
+    t4 = time.time()
     return path
 
 
 # update 3.19: change all to batch planning
 # car_id_bias: car_id0 - 0; batch: [car_id1, car_id2, ...]
-def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_bias, road_inf, speed, time, final_time, all_time):
+def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_bias, road_inf, speed, time, final_time, all_time, map_graph):
 
     path = []
     path_road_time = []
     
     for i in batch:
         car_id = i - car_id_bias
-        path = dijkstra_minpath(car_inf[car_id][1]-1, car_inf[car_id][2]-1, map_loss_array)
+        # path = dijkstra_minpath(car_inf[car_id][1]-1, car_inf[car_id][2]-1, map_loss_array)
+        all_path = dijkstra(map_graph, car_inf[car_id][1])
+        z = car_inf[car_id][2] 
+        path = all_path[z]
         path_center = []
         a = len(path)
     
         path_center.append(car_inf[car_id][0])
         path_center.append(max(car_inf[car_id][4], time))
         for j in range(a-1):
-            path_center.append(int(map_road_array[path[j]][path[j+1]]))
+            path_center.append(int(map_road_array[path[j]-1][path[j+1]-1]))
         path_road_time.append(path_center)
 
         run_time = 0
@@ -200,15 +276,15 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        array_loss[start_id][end_id] = length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta3 * cross_loss_2[start_id][end_id] + delta2 * max(cross_loss_1[start_id+1], cross_loss_1[end_id+1])
+        array_loss[start_id][end_id] = int(length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta3 * cross_loss_2[start_id][end_id] + delta2 * max(cross_loss_1[start_id+1], cross_loss_1[end_id+1]))
         if is_dux == 1:
-            array_dis[end_id][start_id] = length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta3 * cross_loss_2[end_id][start_id] + delta2 * max(cross_loss_1[start_id+1], cross_loss_1[end_id+1])
+            array_dis[end_id][start_id] = int(length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta3 * cross_loss_2[end_id][start_id] + delta2 * max(cross_loss_1[start_id+1], cross_loss_1[end_id+1]))
         else:
-            array_loss[end_id][start_id] = 10000
+            array_loss[end_id][start_id] = float('inf')
     
     return array_loss
 
-
+ 
 def update_car(final_time, time):
     new_final_time = []
     for i in final_time:
@@ -217,7 +293,7 @@ def update_car(final_time, time):
     
     return new_final_time
 
-
+ 
 def car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_array, car_id_bias, road_id_bias):
     path = []
     car_time = []
@@ -245,7 +321,7 @@ def car_sort_time(cur_group, speed, car_inf, road_inf, map_dis_array, map_road_a
 
     return return_car_time
 
-
+ 
 def cal_cross_loss(cross_inf, road_inf, map_road_array):
     """
     update: calculate loss with each side
@@ -289,7 +365,6 @@ def cal_cross_loss(cross_inf, road_inf, map_road_array):
         
     return cross_loss, map_cross_loss
 
-
 def main():
 
     # car_path = sys.argv[1]
@@ -297,20 +372,33 @@ def main():
     # cross_path = sys.argv[3]
     # answer_path = sys.argv[4]
 
-    cross_path = '../SDK_python/CodeCraft-2019/config/cross.txt'
-    road_path = '../SDK_python/CodeCraft-2019/config/road.txt'
-    car_path = '../SDK_python/CodeCraft-2019/config/car.txt'
-    answer_path = '../SDK_python/CodeCraft-2019/config/answer.txt'
+    cross_path = '../Map/1-map-exam-1/cross.txt'
+    road_path = '../Map/1-map-exam-1/road.txt'
+    car_path = '../Map/1-map-exam-1/car.txt'
+    answer_path = '../Map/1-map-exam-1/answer.txt'
 
-    cross_inf = readInf(cross_path)
-    road_inf = readInf(road_path)
-    car_inf = readInf(car_path)
+    # cross_path = '../Map/1-map-training-1/cross.txt'
+    # road_path = '../Map/1-map-training-1/road.txt'
+    # car_path = '../Map/1-map-training-1/car.txt'
+    # answer_path = '../Map/1-map-training-1/answer.txt'
 
-    _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
+    cross_inf_old = readInf(cross_path)
+    road_inf_old = readInf(road_path)
+    car_inf_old = readInf(car_path)
+    cross_inf = changeId(cross_inf_old, 2)
+    road_inf = changeId(road_inf_old, 1)
+    car_inf = changeId(car_inf_old, 0)
+
+    car_inf = changeCar(car_inf)
+    road_inf = changeRoad(road_inf)
+    cross_inf = changeCross(cross_inf)
+
+
+    map_graph, map_dis_array, map_road_array, map_loss_array, _, _ = mapGraph(cross_inf, road_inf)
     cross_loss_1, cross_loss_2 = cal_cross_loss(cross_inf, road_inf, map_road_array)
     car_divide_speed = speed_split(car_inf)
 
-    time = 1
+    Time = 1
     all_time = 0
     car_id_bias = car_inf[0][0]
     road_id_bias = road_inf[0][0]
@@ -318,9 +406,9 @@ def main():
     answer = []
     speed_list = []
     final_time = []
-    road_use_list = road_percent_list = [0] * len(road_inf)
+    road_use_list, road_percent_list = [0] * len(road_inf), [0]*len(road_inf)
     init_flag = True
-
+    c = 0
     # 1. divide by speed
     # 2. calculate time by position (TODO)
     # 3. loop: calculate path ; record road ; update map (TODO)
@@ -333,32 +421,34 @@ def main():
         if not cur_group:
             continue 
 
-        group_divide_time = time_split(cur_group, car_inf, car_per_sec, time, interval_time, speed, car_id_bias, car_position)
+        group_divide_time = time_split(cur_group, car_inf, car_per_sec, Time, interval_time, speed, car_id_bias, car_position)
         
         for batch in group_divide_time:
             batch_len = len(batch)
             while (len(final_time) > (car_in_map - batch_len)):
-                time += 1
-                final_time = update_car(final_time, time)
+                Time += 1
+                final_time = update_car(final_time, Time)
 
             # Judge init and put out cars
             if init_flag and len(final_time ) < init_num:
                 pass
             else:
                 init_flag = False
-            
-            batch_path_time, final_time, all_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_id_bias, road_inf, speed, time, final_time, all_time)
+            b = time.time()
+            batch_path_time, final_time, all_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_id_bias, road_inf, speed, Time, final_time, all_time, map_graph)
+            c += time.time() - b
             if not init_flag:
-                time += interval_time
-            answer += batch_path_time
-            road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
+                Time += interval_time
+            answer += changeAnswer(batch_path_time)
+            # road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
             map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed, cross_loss_1, cross_loss_2)
 
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(tuple(x)) for x in answer))
+    print(c)
 
 
 if __name__ == "__main__":
     a = time.time()
     main()
-    print(time.time() - a)
+    print(time.time()-a)

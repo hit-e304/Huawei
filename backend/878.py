@@ -53,6 +53,10 @@ def map_graph(cross, road):
 
     for i in road:
         name, length, channel, speed_lim, start_id, end_id, is_dux = i ###### is_dux = i[6]???
+        if start_id not in graph.keys():
+            graph[start_id] = {}
+        graph[start_id][end_id] = length
+
         start_id -= 1
         end_id -= 1
 
@@ -284,7 +288,7 @@ def main():
     road_inf = read_inf(road_path)
     car_inf = read_inf(car_path)
 
-    _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
+    graph, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
     cross_loss = cal_cross_loss(cross_inf, road_inf)
     car_divide_speed = speed_split(car_inf)
 
