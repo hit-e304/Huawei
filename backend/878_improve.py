@@ -2,12 +2,13 @@ import sys
 import numpy as np
 import time
 
-
-car_per_sec = 29
+car_per_sec = 35
 interval_time = 1
-car_in_map = 2000
-delta1 = 80
-delta2 = 5
+car_in_map = 1986
+delta1 = 7.3
+delta2 = 0.0
+delta3 = 5
+init_num = 300
 
 
 def readInf(filename):
@@ -69,8 +70,9 @@ def record_road(batch, road_use_list, road_percent_list, road_id_bias):
     
     sum_use = sum(road_use_list)
     a = len(road_use_list)
-    for i in range(a):
-        road_percent_list[i] = road_use_list[i] / sum_use
+    if sum_use != 0:
+        for i in range(a):
+            road_percent_list[i] = road_use_list[i] / sum_use
     
     return road_use_list, road_percent_list
 
@@ -187,7 +189,7 @@ def cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, ro
     return path_road_time, final_time, all_time
 
 
-def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed, cross_loss):
+def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias, speed, cross_loss_1, cross_loss_2):
     """
     update: change loss function
     """
@@ -198,9 +200,9 @@ def update_loss(array_loss, array_dis, road_inf, road_percent_list, road_id_bias
         name -= road_id_bias
         use_rate = road_percent_list[name]
         # loss = length * (1 + 2 / channel / channel) - 0.5 * min(speed_lim, speed) + 20
-        array_loss[start_id][end_id] = length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta2 * cross_loss[start_id][end_id]
+        array_loss[start_id][end_id] = length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta3 * cross_loss_2[start_id][end_id] + delta2 * max(cross_loss_1[start_id+1], cross_loss_1[end_id+1])
         if is_dux == 1:
-            array_dis[end_id][start_id] = length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta2 * cross_loss[end_id][start_id]
+            array_dis[end_id][start_id] = length * 1 / min(speed_lim, speed) + delta1 * use_rate / channel / length + delta3 * cross_loss_2[end_id][start_id] + delta2 * max(cross_loss_1[start_id+1], cross_loss_1[end_id+1])
         else:
             array_loss[end_id][start_id] = 10000
     
@@ -249,6 +251,7 @@ def cal_cross_loss(cross_inf, road_inf, map_road_array):
     update: calculate loss with each side
     """
     road_flow = {}
+    cross_loss = {}
     a = len(cross_inf)
     map_cross_loss = np.zeros([a, a])
     for road in road_inf:
@@ -260,7 +263,6 @@ def cal_cross_loss(cross_inf, road_inf, map_road_array):
                 cross = cross_inf[i]
                 road_id = int(map_road_array[i][j])
                 dir_out = cross.index(road_id)
-
                 dirc = [1, 2, 3, 4]
                 for k in [1, 2, 3, 4]:
                     if cross[k] == -1:
@@ -271,11 +273,21 @@ def cal_cross_loss(cross_inf, road_inf, map_road_array):
                     if m == dir_out:
                         continue
                     in_flow += road_flow[cross[m]]
-
                 loss = max((in_flow / num_avail - road_flow[cross[dir_out]]), 0) / road_flow[cross[dir_out]]
-
                 map_cross_loss[i][j] = loss
-    return map_cross_loss
+    
+    for cross in cross_inf:
+        loss = 0
+        for i in [1, 2, 3, 4]:
+            if cross[i] == -1:
+                continue
+            for j in [1, 2, 3, 4]:
+                if cross[j] == -1:
+                    continue
+                loss += abs(road_flow[cross[i]] - road_flow[cross[j]])
+        cross_loss[cross[0]] = loss
+        
+    return cross_loss, map_cross_loss
 
 
 def main():
@@ -295,7 +307,7 @@ def main():
     car_inf = readInf(car_path)
 
     _, map_dis_array, map_road_array, map_loss_array, _, _ = map_graph(cross_inf, road_inf)
-    cross_loss = cal_cross_loss(cross_inf, road_inf, map_road_array)
+    cross_loss_1, cross_loss_2 = cal_cross_loss(cross_inf, road_inf, map_road_array)
     car_divide_speed = speed_split(car_inf)
 
     time = 1
@@ -307,6 +319,7 @@ def main():
     speed_list = []
     final_time = []
     road_use_list = road_percent_list = [0] * len(road_inf)
+    init_flag = True
 
     # 1. divide by speed
     # 2. calculate time by position (TODO)
@@ -327,20 +340,20 @@ def main():
             while (len(final_time) > (car_in_map - batch_len)):
                 time += 1
                 final_time = update_car(final_time, time)
+
+            # Judge init and put out cars
+            if init_flag and len(final_time ) < init_num:
+                pass
+            else:
+                init_flag = False
             
             batch_path_time, final_time, all_time = cal_car_path(map_loss_array, map_road_array, car_inf, batch, car_id_bias, road_id_bias, road_inf, speed, time, final_time, all_time)
-            time += interval_time
+            if not init_flag:
+                time += interval_time
             answer += batch_path_time
             road_use_list, road_percent_list = record_road(batch_path_time, road_use_list, road_percent_list, road_id_bias)
-            map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed, cross_loss)
+            map_loss_array = update_loss(map_loss_array, map_dis_array, road_inf, road_percent_list, road_id_bias, speed, cross_loss_1, cross_loss_2)
 
-
-
-    # path_road = all_car_path(map_loss_array, map_road_array, car_inf)
-    # car_time_sche = time_split(car_inf, car_per_sec, path_road)
-    # answer = combine_time_path(car_inf, car_time_sche, path_road)
-    # answer = all_car_path(map_dis_array, map_road_array, car_inf, car_time_sche)
-    
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(tuple(x)) for x in answer))
 

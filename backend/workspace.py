@@ -413,6 +413,9 @@ class Cross():
         self.done = False
         self.update = False
 
+    def findNeighbor(self):
+        
+
     def step(self):
         self.update = False
         for roadId in self.validRoad:
@@ -682,7 +685,7 @@ def a_star(start_id, end_id, cross_map):
         openSet.remove(curCrossId)
         closeSet.append(curCrossId)
 
-        # TODO: Find neighbor of curCrossId
+        # TODO: Find neighbor of curCrossId in class Cross
         for neighbor in 
 
 
