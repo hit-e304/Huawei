@@ -393,6 +393,7 @@ class CROSS(object):
                 nextDirection.append(-1)
         # loop
         for presentRoadIndex in range(self.provider.__len__()):
+            breakFlag = False
             while nextCar[presentRoadIndex]!=-1:
                 # same next road and high priority lead to conflict
                 provider = ROADDICT[self.provider[presentRoadIndex]]
@@ -402,7 +403,10 @@ class CROSS(object):
                     if nextCar[otherRoadIndex] != -1 and \
                             self.isConflict(self.providerDirection[presentRoadIndex], nextDirection[presentRoadIndex],
                                             self.providerDirection[otherRoadIndex], nextDirection[otherRoadIndex]):
+                        breakFlag = True
                         break
+                if breakFlag:
+                    break
                 if nextRoad[presentRoadIndex] == -1:
                     nextCar[presentRoadIndex].updateDynamic(3)
                     provider.firstPriorityCarAct(0)
@@ -822,3 +826,4 @@ if __name__  ==   "__main__":
 
 
 # python3 simulator.py SDK_python/CodeCraft-2019/config/car.txt SDK_python/CodeCraft-2019/config/road.txt SDK_python/CodeCraft-2019/config/cross.txt SDK_python/CodeCraft-2019/config/answer.txt
+# python3 simulator.py Map/1-map-training-1/car.txt Map/1-map-training-1/road.txt Map/1-map-training-1/cross.txt Map/1-map-training-1/answer.txt

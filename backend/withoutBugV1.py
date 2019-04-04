@@ -71,7 +71,6 @@ class Car():
     def updateParameter(self, state, x=None, y=None, presentRoad=None, roadSpeed=None, nextCrossId=None):
         if self.state != 0 or presentRoad is not None:
             self.state = state
-        # BUG
         if presentRoad is not None and self.state != 0 and self.routeIndex < self.route.__len__():
             self.routeIndex += 1
         self.x = x if x is not None else self.x
@@ -266,43 +265,19 @@ class Road():
         return -1
     
     def firstPriorityCar(self):
-        firstLowPriority = [None] * self.channel_
-
-        def nextPos():
-            if self.py == self.channel_ - 1:
-                self.px, self.py = self.px + 1, 0
-            else:
-                self.py += 1            
-    
         while True:
             if self.px == self.length_:
                 break
-            try:
-                firstLowPriority.index(None)
-            except:
-                outY = 0
-                outX = firstLowPriority[outY]
-                for i in range(self.channel_-1):
-                    if firstLowPriority[i+1] < outX:
-                        outX, outY = firstLowPriority[i+1], i+1
-                return self.provideTube[outX][outY]
-            if firstLowPriority[self.py]:
-                nextPos()
-                continue
-            
             carId = self.provideTube[self.px][self.py]
             if carId is not None and CARDICT[carId].__getPar__('state') != 2:
                 car = CARDICT[carId]
                 left = car.__getPar__('v')
                 if left > self.px and self.searchCar(-1, self.px-1, self.py, self.provideTube) == -1:
-                    if car.__getPar__('priority'):
-                        return self.provideTube[self.px][self.py]
-                    elif not firstLowPriority[self.py]:
-                        firstLowPriority[self.py] = self.px
-                        nextPos()
-                        continue
-            nextPos()
-
+                    return self.provideTube[self.px][self.py]
+            if self.py == self.channel_ - 1:
+                self.px, self.py = self.px + 1, 0
+            else:
+                self.py += 1
         self.provideDone = True
         return -1
     
@@ -322,13 +297,11 @@ class Road():
         if self.receiveTube is None:
             print("Please do ROAD.setBucket() first!")
         car = CARDICT[carId]
-        if carId == 28263:
-            print(car.__getPar__('routeIndex'))
         leftX = max(min(self.speed_, car.__getPar__('speed')) - car.__getPar__('x'), 0)
         if car.__getPar__('nextCrossId') != self.startId_:
             nextCrossId = self.startId_
         else:
-            nextCrossId = self.endId_ # 16619958513
+            nextCrossId = self.endId_
         if leftX <= 0:
             car.updateParameter(state=2, x=0)
             return 1
@@ -413,7 +386,7 @@ class Cross():
         self.done = False
         self.update = False
 
-    # Update 2019.4.4 : add priorityBias for high priority cars
+    # def findNeighbor(self):
     def step(self):
         self.update = False
         for roadId in self.validRoad:
@@ -426,13 +399,11 @@ class Cross():
             if firstCarId[provideIndex] != -1:
                 firstCar.append(CARDICT[firstCarId[provideIndex]]) # [Car..., Car..., Car..., ]
                 nextRoad.append(firstCar[provideIndex].__getPar__('nextRoad')) # [5007, 5007, 5008, 5001]
-                # if car is high priority, priority += 3
-                priorityBias = 3 * firstCar[provideIndex].__getPar__('priority')
                 # nextRoad == -1 => terminal
                 if nextRoad[provideIndex] == -1:
-                    nextCarPriority.append(priorityBias + 2)
+                    nextCarPriority.append(2)
                 else:
-                    nextCarPriority.append(priorityBias + self.priority(self.provider[provideIndex], nextRoad[provideIndex]))
+                    nextCarPriority.append(self.prority(self.provider[provideIndex], nextRoad[provideIndex]))
             else:
                 firstCar.append(-1)
                 nextRoad.append(-1)
@@ -472,7 +443,7 @@ class Cross():
                     if nextRoad[provideIndex] == -1:
                         nextCarPriority[provideIndex] = 2
                     else:
-                        nextCarPriority[provideIndex]= self.priority(self.provider[provideIndex], nextRoad[provideIndex])
+                        nextCarPriority[provideIndex]= self.prority(self.provider[provideIndex], nextRoad[provideIndex])
                 else:
                     firstCar[provideIndex] = -1
                     nextRoad[provideIndex]= -1
@@ -534,7 +505,7 @@ class Cross():
                 CARDISTRIBUTION[0] -= 1
                 CARDISTRIBUTION[1] += 1
     
-    def priority(self,providerId,receiverId):
+    def prority(self,providerId,receiverId):
         return self.priorityMap[providerId][receiverId]
     def setDone(self,bool):
         self.done = bool
@@ -589,6 +560,38 @@ def infInit(crossPath, roadPath, carPath, presetPath):
     carInf = readInf(carPath)
     presetInf = readInf(presetPath)
 
+    visitDone = {}
+    for line in crossInf:
+        id_, north_, east_, south_, west_ = line
+        CROSSNAMESPACE.append(int(id_))
+        visitDone[int(id_)] = False
+        CROSSDICT[int(id_)] = [int(north_), int(east_), int(south_), int(west_)]
+
+    def remaster(crossId, direction=None, preCrossId=None):
+        if visitDone[crossId]:
+            return
+        visitDone[crossId] = True
+        if preCrossId is not None:
+            for i in range(4):
+                roadId = CROSSDICT[crossId][i]
+                if roadId! = -1:
+                    pcId = ROADDICT[roadId].__from__() if ROADDICT[roadId].__from__()!= crossId else ROADDICT[roadId].__to__()
+                    if pcId == preCrossId:
+                        break
+            shift = ((i + 2) % 4 - direction) % 4
+            for i in range(shift):
+                CROSSDICT[crossId]=[CROSSDICT[crossId][1],CROSSDICT[crossId][2],CROSSDICT[crossId][3],CROSSDICT[crossId][0]]
+        for i in range(4):
+            roadId = CROSSDICT[crossId][i]
+            if roadId!=-1:
+                nextCrossId = ROADDICT[roadId].__from__() if ROADDICT[roadId].__from__()!= crossId else ROADDICT[roadId].__to__()
+                remaster(nextCrossId,i,crossId)
+
+    remaster(CROSSNAMESPACE[0])
+    for crossId in CROSSNAMESPACE:
+        line = [crossId] + CROSSDICT[crossId]
+        CROSSDICT[crossId] = Cross(line)
+
     for line in carInf:
         #### Update 2019.4.3 : divide car whether preset ####
         CARNAMESPACE.append(line[0])
@@ -598,39 +601,6 @@ def infInit(crossPath, roadPath, carPath, presetPath):
     for line in roadInf:
         ROADNAMESPACE.append(line[0])
         ROADDICT[line[0]] = Road(line)
-
-    # visitDone = {}
-    # for line in crossInf:
-    #     id_, north_, east_, south_, west_ = line
-    #     CROSSNAMESPACE.append(int(id_))
-    #     visitDone[int(id_)] = False
-    #     CROSSDICT[int(id_)] = [int(north_), int(east_), int(south_), int(west_)]
-
-    # def remaster(crossId, direction=None, preCrossId=None):
-    #     if visitDone[crossId]:
-    #         return
-    #     visitDone[crossId] = True
-    #     if preCrossId is not None:
-    #         for i in range(4):
-    #             roadId = CROSSDICT[crossId][i]
-    #             if roadId != -1:
-    #                 pcId = ROADDICT[roadId].__getPar__('startId') if ROADDICT[roadId].__getPar__('startId')!= crossId else ROADDICT[roadId].__getPar__('endId')
-    #                 if pcId == preCrossId:
-    #                     break
-    #         shift = ((i + 2) % 4 - direction) % 4
-    #         for i in range(shift):
-    #             CROSSDICT[crossId]=[CROSSDICT[crossId][1],CROSSDICT[crossId][2],CROSSDICT[crossId][3],CROSSDICT[crossId][0]]
-    #     for i in range(4):
-    #         roadId = CROSSDICT[crossId][i]
-    #         if roadId != -1:
-    #             nextCrossId = ROADDICT[roadId].__getPar__('startId') if ROADDICT[roadId].__getPar__('startId')!= crossId else ROADDICT[roadId].__getPar__('endId')
-    #             remaster(nextCrossId,i,crossId)
-
-    # remaster(CROSSNAMESPACE[0])
-    # for crossId in CROSSNAMESPACE:
-    #     line = [crossId] + CROSSDICT[crossId]
-    #     CROSSDICT[crossId] = Cross(line)
-
     for line in crossInf:
         CROSSNAMESPACE.append(line[0])
         CROSSDICT[line[0]] = Cross(line)
@@ -859,8 +829,6 @@ def carPlan(pathTimeInf):
         carId = int(line[0])
         planTime_ = int(line[1])
         route = [int(roadId) for roadId in line[2:]]
-        if carId == 28263:
-            print(route)
         CARDICT[carId].simulateInit(planTime_, route)
         carReadyDict[carId] = CARDICT[carId]
 

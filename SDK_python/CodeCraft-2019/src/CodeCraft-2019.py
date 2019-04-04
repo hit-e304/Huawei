@@ -883,6 +883,7 @@ def main():
     infInit(cross_path, road_path, car_path, preset_path)
     calCrossLoss()
     carDivideSpeed = speedSplit()
+    carPlan(preset_path)
 
     curTime = 1
     answer, speed_list = [], []
