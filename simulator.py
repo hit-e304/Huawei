@@ -763,10 +763,13 @@ def takeSecond(elem):
 
 
 def main():
-    car_path = sys.argv[1]
-    road_path = sys.argv[2]
-    cross_path = sys.argv[3]
-    answer_path = sys.argv[4]
+    relate_path = 'Map/2-training-training-2-answer'
+
+    cross_path = relate_path + '/cross.txt'
+    road_path = relate_path + '/road.txt'
+    car_path = relate_path + '/car.txt'
+    answer_path = relate_path + '/answer.txt'
+
     # ************************************* M A I N *******************************************#
     # load .txt files
     carInfo = open(car_path, 'r').read().split('\n')[1:]
@@ -777,7 +780,7 @@ def main():
     # create car objects
     # line = (id,from,to,speed,planTime)
     for line in carInfo:
-        id_, from_, to_, speed_, planTime_ = line.replace(' ', '').replace('\t', '')[1:-1].split(',')
+        id_, from_, to_, speed_, planTime_, _, _ = line.replace(' ', '').replace('\t', '')[1:-1].split(',')
         CARNAMESPACE.append(int(id_))
         CARDICT[int(id_)] = CAR(int(id_), int(from_), int(to_), int(speed_), int(planTime_))
     # create road objects
@@ -789,10 +792,38 @@ def main():
                                   int(isDuplex_))
     # create cross objects
     # line = (id,north,east,south,west)
+    #DP and DFS adjust directions
+        visitDone = {}
     for line in crossInfo:
         id_, north_, east_, south_, west_ = line.replace(' ', '').replace('\t', '')[1:-1].split(',')
         CROSSNAMESPACE.append(int(id_))
-        CROSSDICT[int(id_)] = CROSS(int(id_), int(north_), int(east_), int(south_), int(west_))
+        visitDone[int(id_)] = False
+        CROSSDICT[int(id_)] = [int(north_), int(east_), int(south_), int(west_)]
+    def DFS(crossId,direction=None,preCrossId=None):
+        if visitDone[crossId]:
+            return
+        visitDone[crossId] = True
+        if preCrossId is not None:
+            for i in range(4):
+                roadId = CROSSDICT[crossId][i]
+                if roadId!=-1:
+                    pcId = ROADDICT[roadId].__from__() if ROADDICT[roadId].__from__()!= crossId else ROADDICT[roadId].__to__()
+                    if pcId == preCrossId:
+                        break
+            shift=((i+2)%4-direction)%4
+            for i in range(shift):
+                CROSSDICT[crossId]=[CROSSDICT[crossId][1],CROSSDICT[crossId][2],CROSSDICT[crossId][3],CROSSDICT[crossId][0]]
+        for i in range(4):
+            roadId = CROSSDICT[crossId][i]
+            if roadId!=-1:
+                nextCrossId = ROADDICT[roadId].__from__() if ROADDICT[roadId].__from__()!= crossId else ROADDICT[roadId].__to__()
+                DFS(nextCrossId,i,crossId)
+
+    DFS(CROSSNAMESPACE[0])
+    for crossId in CROSSNAMESPACE:
+        north_,east_,south_,west_ = CROSSDICT[crossId]
+        CROSSDICT[crossId] = CROSS(crossId,north_,east_,south_,west_)
+
     # car route initialize
     # line = (id,startTime,route)
     count = 0

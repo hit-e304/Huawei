@@ -1222,7 +1222,7 @@ def main():
     # preset_path = sys.argv[4]
     # answer_path = sys.argv[5]
 
-    relate_path = 'Map/2-map-training-2'
+    relate_path = 'Map/2-training-training-2-answer'
     cross_path = '../' + relate_path + '/cross.txt'
     road_path = '../' + relate_path + '/road.txt'
     car_path = '../' + relate_path + '/car.txt'
@@ -1258,7 +1258,7 @@ def main():
             batch_len = len(batch)
             while (CARDISTRIBUTION[1] > (carInMap - batch_len)):
                 dead_flag = simulateStep()
-                # visualize.drawMap()           
+                visualize.drawMap()           
                 TIME[0] += 1
                 print(TIME[0])
                 if dead_flag:
@@ -1272,7 +1272,7 @@ def main():
             carPlan(batchPathTime)
             dijTime += time.time() - dij
             dead_flag = simulateStep()
-            # visualize.drawMap()
+            visualize.drawMap()
             print(CARDISTRIBUTION)
             if dead_flag:
                 break

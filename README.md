@@ -105,12 +105,19 @@
 
    - init firstLowPriority 储存找到的每个channel第一辆低优先级车
    - while True：
-     - if 找完了全部长度 break
-     - elif 全部channel找到了第一辆低优先级车，从其中选X最小的输出
-     - elif 当前channel第一优先级车已找到，跳过当前channel，搜索下一位置
-     - 如果当前位置有车：
-       - 如果是高优先级，直接输出
-       - 如果是低优先级，存入firstLowPriority[channel]
-       - 搜索下一位置
-     - 如果当前位置没车：
-       - 搜索下一位置
+     - if 找完了全部长度
+       - 有低优先级车辆：取出位置最高的
+       - 没有低优先车辆：return -1
+     - elif 全部channel找到了第一辆低优先级车
+       - 从其中选X最小的输出
+     - elif 当前channel第一低优先级车已找到
+       - 跳过当前channel，搜索下一位置
+     - else：
+       - 如果当前位置有车：
+         - 如果是高优先级
+           - 直接输出
+         - 如果是低优先级
+           - 存入firstLowPriority[channel]
+           - 搜索下一位置
+       - 如果当前位置没车
+         - 搜索下一位置
