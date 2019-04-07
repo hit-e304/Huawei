@@ -7,11 +7,11 @@ import cv2 as cv
 import heap
 
 
-carPerSec = 20
+carPerSec = 40
 intervalTime = 1
 carInMap = 2000
 delta1 = 75
-delta2 = 20
+delta2 = 10
 
 TIME = [0]
 CARDISTRIBUTION = [0,0,0]
@@ -375,6 +375,7 @@ class Road():
             self.provideTube[self.px][self.py] = None
             self.provideTube[0][self.py] = carId
         self.updateChannel(self.provideTube, self.py)
+
     
     # return: 1 means car's leftX = 0; 2 means wait for previous car moving;
     #         3 means next cross has no place; 
@@ -496,8 +497,6 @@ class Cross():
                 firstCar.append(-1)
                 nextRoad.append(-1)
                 nextCarPriority.append(-1)
-                # get priority [1, 1, 0, 2]
-      
 
         # # loop
         # for provideIndex in range(self.provider.__len__()):
@@ -573,7 +572,7 @@ class Cross():
                         actionFlag[provideIndex] = 1
                         #找下一个provideIndex 并且把值赋给provideIndex
                         provideIndex = (provideIndex + 1) % roadNum
-                        break
+                        continue
                     provider.firstPriorityCarAct(action)
                     self.update = True
                 firstCarId[provideIndex] = provider.firstPriorityCar()
@@ -961,6 +960,10 @@ def simulateStep():
         unfinishedCross = nextCross
         if deadSign:
             print('dead lock in', unfinishedCross)
+            for carId in CARNAMESPACE:
+                car = CARDICT[carId]
+                if car.state == 1:
+                    print('[%s, %s, %s]' % (carId, car.presentRoad, car.nextCrossId))
             return deadSign
     for i in range(CROSSNAMESPACE.__len__()):
         crossId = CROSSNAMESPACE[i]
@@ -1222,7 +1225,7 @@ def main():
     preset_path = sys.argv[4]
     answer_path = sys.argv[5]
 
-    # relate_path = 'Map/2-training-training-2-answer'
+    # relate_path = 'Map/2-map-training-2'
     # cross_path = '../' + relate_path + '/cross.txt'
     # road_path = '../' + relate_path + '/road.txt'
     # car_path = '../' + relate_path + '/car.txt'
@@ -1258,8 +1261,8 @@ def main():
             batch_len = len(batch)
             while (CARDISTRIBUTION[1] > (carInMap - batch_len)):
                 dead_flag = simulateStep()
+                # visualize.drawMap()           
                 TIME[0] += 1
-                print(TIME[0])
                 if dead_flag:
                     break
             if dead_flag:
@@ -1271,13 +1274,17 @@ def main():
             carPlan(batchPathTime)
             dijTime += time.time() - dij
             dead_flag = simulateStep()
-            visualize.drawMap()
+            # visualize.drawMap()
             print(CARDISTRIBUTION)
             if dead_flag:
                 break
             TIME[0] += 1
-            print(TIME[0])
             answer += batchPathTime
+        if dead_flag:
+            break
+    while CARDISTRIBUTION[0] + CARDISTRIBUTION[1] != 0:
+        dead_flag = simulateStep()
+        # visualize.drawMap()
         if dead_flag:
             break
 

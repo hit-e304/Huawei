@@ -7,20 +7,20 @@ import cv2 as cv
 import heap
 
 
-carPerSec = 20
+carPerSec = 50
 intervalTime = 1
-carInMap = 2000
-delta1 = 75
-delta2 = 20
+carInMap = 5000
+delta1 = 100
+delta2 = 15
 
-TIME = [0]
-CARDISTRIBUTION = [0,0,0]
-CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[], []  # save Id of each kind
-CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
-ROUTEMAP ={}
-CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
-ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
-
+# TIME = [0]
+# CARDISTRIBUTION = [0,0,0]
+# CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
+# CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
+# ROUTEMAP ={}
+# CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
+# ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
+# DEADLOCKNAMESPACE, DELAYDICT = [], {}
 
 def readInf(filename):
     outList = []
@@ -54,6 +54,7 @@ class Car():
         self.isWaiting = False
         self.route, self.routeIndex, self.startTime = None, None, None
         self.carColor = [int(value) for value in np.random.random_integers(0, 255, [3])]
+        self.delay = 0
     
     def simulateInit(self, planTime, route):
         self.startTime, self.route, self.routeIndex = planTime, route, 0
@@ -270,77 +271,7 @@ class Road():
         return -1
     
     def firstPriorityCar(self):
-        # while True:
-        #     if self.px == self.length_:
-        #         break
-        #     carId = self.provideTube[self.px][self.py]
-        #     if carId is not None and CARDICT[carId].__getPar__('state') != 2:
-        #         car = CARDICT[carId]
-        #         left = car.__getPar__('v')
-        #         if left > self.px and self.searchCar(-1, self.px-1, self.py, self.provideTube) == -1:
-        #             return self.provideTube[self.px][self.py]
-        #     if self.py == self.channel_ - 1:
-        #         self.px, self.py = self.px + 1, 0
-        #     else:
-        #         self.py += 1
-        # self.provideDone = True
-        # return -1
 
-        # firstLowPriority = [None] * self.channel_
-
-        # def nextPos():
-        #     if self.py == self.channel_ - 1:
-        #         self.px, self.py = self.px + 1, 0
-        #     else:
-        #         self.py += 1
-    
-        # while True:
-        #     if self.px == self.length_:
-        #         outX = self.length_
-        #         for i in range(self.channel_):
-        #             if not firstLowPriority[i]:
-        #                 continue
-        #             if firstLowPriority[i] < outX:
-        #                 outX, outY = firstLowPriority[i], i
-        #         if outX == self.length_:
-        #             self.provideDone = True
-        #             return -1
-        #         else:
-        #             self.px, self.py = outX, outY
-        #             return self.provideTube[self.px][self.py]
-        #     # if all the channel find firstLowPriorityCar , stop searching
-        #     try:
-        #         firstLowPriority.index(None)
-        #     except:
-        #         outY = 0
-        #         outX = firstLowPriority[outY]
-        #         for i in range(self.channel_ - 1):
-        #             if firstLowPriority[i+1] < outX:
-        #                 outX, outY = firstLowPriority[i + 1], i + 1
-        #         if outX == self.length_:
-        #             self.provideDone = True
-        #             return -1
-        #         else:
-        #             self.px, self.py = outX, outY
-        #             return self.provideTube[self.px][self.py]
-
-        #     if firstLowPriority[self.py]:
-        #         nextPos()
-        #         continue
-            
-        #     carId = self.provideTube[self.px][self.py]
-        #     if carId is not None:
-        #         if CARDICT[carId].__getPar__('state') != 2:
-        #             car = CARDICT[carId]
-        #             left = car.__getPar__('v')
-        #             if left > self.px and self.searchCar(-1, self.px - 1, self.py, self.provideTube) == -1:
-        #                 if car.__getPar__('priority'):
-        #                     return self.provideTube[self.px][self.py]
-        #                 else:
-        #                     firstLowPriority[self.py] = self.px
-        #         else:
-        #             firstLowPriority[self.py] = self.length_
-        #     nextPos()
         firstPriorityCar = [None] * self.channel_
         firstPriorityCarPoint = [-10000] * self.channel_
         for y in range(self.channel_):
@@ -353,8 +284,8 @@ class Road():
                     if left > x and car.state == 1:
                         firstPriorityCar[y] = x
                         firstPriorityCarPoint[y] = priority * 10000 - self.channel_ * y - x
-                    else:
-                        break
+                    break
+
         maxNum = -10000
         for i in range(self.channel_):
             if firstPriorityCarPoint[i] > maxNum:
@@ -368,13 +299,17 @@ class Road():
     
     def firstPriorityCarAct(self, action):
         if action == 0:
+            carId = self.provideTube[self.px][self.py]
             self.provideTube[self.px][self.py] = None
+            car = CARDICT[carId]
+            car.updateParameter(state=2)
             self.provideNum -= 1
         elif action == 1:
             carId = self.provideTube[self.px][self.py]
             self.provideTube[self.px][self.py] = None
             self.provideTube[0][self.py] = carId
         self.updateChannel(self.provideTube, self.py)
+
     
     # return: 1 means car's leftX = 0; 2 means wait for previous car moving;
     #         3 means next cross has no place; 
@@ -496,53 +431,6 @@ class Cross():
                 firstCar.append(-1)
                 nextRoad.append(-1)
                 nextCarPriority.append(-1)
-                # get priority [1, 1, 0, 2]
-      
-
-        # # loop
-        # for provideIndex in range(self.provider.__len__()):
-        #     breakFlag = False
-        #     while firstCar[provideIndex] != -1:
-        #         # same next road and high priority lead to conflict
-        #         provider = ROADDICT[self.provider[provideIndex]]
-        #         for i in range(self.provider.__len__()):
-        #             # if conflict(same direction and low priority)
-        #             if nextRoad[i] == nextRoad[provideIndex] and nextCarPriority[i] > nextCarPriority[provideIndex]:
-        #                 # provideIndex == i
-        #                 breakFlag = True
-        #                 break
-        #         if breakFlag:
-        #             break
-        #         if nextRoad[provideIndex] == -1:
-        #             provider.firstPriorityCarAct(0)
-        #             self.update = True
-        #             CARDISTRIBUTION[1] -= 1
-        #             CARDISTRIBUTION[2] += 1
-        #         else:
-        #             nextroad_ = ROADDICT[nextRoad[provideIndex]]
-        #             action = nextroad_.receiveCar(firstCar[provideIndex].__getPar__('id'))
-        #             if action == 2:
-        #                 break
-        #             provider.firstPriorityCarAct(action)
-        #             self.update = True
-        #         firstCarId[provideIndex] = provider.firstPriorityCar()
-        #         if firstCarId[provideIndex] != -1:                                                                                                           
-        #             firstCar[provideIndex] = CARDICT[firstCarId[provideIndex]]
-        #             nextRoad[provideIndex] = firstCar[provideIndex].__getPar__('nextRoad')
-        #             # nextRoad == -1 => terminal
-        #             if nextRoad[provideIndex] == -1:
-        #                 nextCarPriority[provideIndex] = 2
-        #             else:
-        #                 nextCarPriority[provideIndex]= self.priority(self.provider[provideIndex], nextRoad[provideIndex])
-        #         else:
-        #             firstCar[provideIndex] = -1
-        #             nextRoad[provideIndex]= -1
-        #             nextCarPriority[provideIndex] = -1  
-        # done = True
-        # for provideIndex in range(self.provider.__len__()):
-        #     if firstCar[provideIndex] != -1:
-        #         done = False
-        # self.done = done
         
         roadNum = self.provider.__len__()
         actionFlag = [0] * roadNum
@@ -566,14 +454,12 @@ class Cross():
                 else:
                     nextroad_ = ROADDICT[nextRoad[provideIndex]]
                     action = nextroad_.receiveCar(firstCar[provideIndex].__getPar__('id'))
-                    # if firstCar[provideIndex].__getPar__('id') == 109864:
-                    #     print(action) 
                     if action == 2:
                         #堵塞标志赋值
                         actionFlag[provideIndex] = 1
                         #找下一个provideIndex 并且把值赋给provideIndex
                         provideIndex = (provideIndex + 1) % roadNum
-                        break
+                        continue
                     provider.firstPriorityCarAct(action)
                     self.update = True
                 firstCarId[provideIndex] = provider.firstPriorityCar()
@@ -700,6 +586,7 @@ class Cross():
 
 class visualization(object):
     def __init__(self):
+        self.dead_sign = False
         self.maxX,self.maxY = 0,0
         self.savePath = '../sim'
         # ** cross param **#
@@ -764,7 +651,7 @@ class visualization(object):
     # draw functions
     #
     def drawMap(self):
-        img = np.ones((self.maxX,self.maxY,3),np.uint8)*255
+        img = np.ones((self.maxX,self.maxY,3),np.uint8)*350
         #draw road
         for roadId in ROADNAMESPACE:
             self.plotRoad(roadId,img)
@@ -803,8 +690,13 @@ class visualization(object):
         for i in range(length):
             for j in range(channel):
                 xRD,yRD = int(XY[0]+rectangleSize[0]),int(XY[1]+rectangleSize[1])
-                if bucket[i][j] is  None:
+                if bucket[i][j] is None:
                     cv.rectangle(img,(int(XY[0]),int(XY[1])),(xRD,yRD),(0,0,0),1)
+                elif self.dead_sign:
+                    if CARDICT[bucket[i][j]].__getPar__('state') == 1:
+                        cv.rectangle(img, (int(XY[0]), int(XY[1])),(xRD, yRD),color=(0, 255, 0),thickness=-1)
+                    else:
+                        cv.rectangle(img, (int(XY[0]), int(XY[1])),(xRD, yRD),color=(0, 0, 0),thickness=-1)
                 else:
                     color = CARDICT[bucket[i][j]].__getPar__('carColor')
                     cv.rectangle(img, (int(XY[0]), int(XY[1])),(xRD, yRD),color=color,thickness=-1)
@@ -860,6 +752,16 @@ class visualization(object):
 
 
 def infInit(crossPath, roadPath, carPath, presetPath):
+
+    # TIME = [0]
+    # CARDISTRIBUTION = [0,0,0]
+    # CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
+    # CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
+    # ROUTEMAP ={}
+    # CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
+    # ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
+    # DEADLOCKNAMESPACE, DELAYDICT = [], {}
+
     crossInf = readInf(crossPath)
     roadInf = readInf(roadPath)
     carInf = readInf(carPath)
@@ -869,6 +771,8 @@ def infInit(crossPath, roadPath, carPath, presetPath):
         #### Update 2019.4.3 : divide car whether preset ####
         CARNAMESPACE.append(line[0])
         CARDICT[line[0]] = Car(line)
+        if line[0] in DELAYDICT.keys():
+            CARDICT[line[0]].delay = DELAYDICT[line[0]]
         if line[6] == 1:
             PRESETCARNAMESPACE.append(line[0])
 
@@ -876,7 +780,7 @@ def infInit(crossPath, roadPath, carPath, presetPath):
         ROADNAMESPACE.append(line[0])
         ROADDICT[line[0]] = Road(line)
 
-        visitDone = {}
+    visitDone = {}
     for line in crossInf:
         id_= line[0]
         CROSSNAMESPACE.append(int(id_))
@@ -911,6 +815,7 @@ def infInit(crossPath, roadPath, carPath, presetPath):
 
     CARDISTRIBUTION[0] = CARNAMESPACE.__len__()
     CARNAMESPACE.sort()
+    PRESETCARNAMESPACE.sort()
     CROSSNAMESPACE.sort()
 
     #### Update 2019.4.1 ####
@@ -959,8 +864,22 @@ def simulateStep():
             if cross.__getPar__('update') or cross.__getPar__('done'):
                     deadSign = False
         unfinishedCross = nextCross
+        # BUG: delay 50% of dead lock Car
         if deadSign:
             print('dead lock in', unfinishedCross)
+            for carId in CARNAMESPACE:
+                if CARDICT[carId].state == 1 and CARDICT[carId].preset_ == 0:
+                    DEADLOCKNAMESPACE.append(carId)
+            deadLockNum = len(DEADLOCKNAMESPACE)
+            delayTime = 10
+            for i in range(deadLockNum):
+                if i % 2 == 0:
+                    carId = DEADLOCKNAMESPACE[i]
+                    try:
+                        DELAYDICT[carId] += delayTime
+                    except:
+                        DELAYDICT[carId] = delayTime
+            print('%s cars dead lock, delay %s seconds' % (deadLockNum, delayTime))
             return deadSign
     for i in range(CROSSNAMESPACE.__len__()):
         crossId = CROSSNAMESPACE[i]
@@ -1133,7 +1052,7 @@ def carPlan(pathTimeInf):
     carReadyDict = {}
     for line in pathTimeInf:
         carId = int(line[0])
-        planTime = int(line[1])
+        planTime = int(line[1]) + CARDICT[carId].delay
         route = [int(roadId) for roadId in line[2:]]
         CARDICT[carId].simulateInit(planTime, route)
         carReadyDict[carId] = CARDICT[carId]
@@ -1214,6 +1133,7 @@ def printCrossLoss(roadInf, crossLoss, lossPath):
         fp.write('\n'.join(str(tuple(x)) for x in crossLossOutput)) 
 
 
+
 def main():
 
     # car_path = sys.argv[1]
@@ -1222,7 +1142,7 @@ def main():
     # preset_path = sys.argv[4]
     # answer_path = sys.argv[5]
 
-    relate_path = 'Map/2-map-training-2'
+    relate_path = 'Map/2-map-training-1'
     cross_path = '../' + relate_path + '/cross.txt'
     road_path = '../' + relate_path + '/road.txt'
     car_path = '../' + relate_path + '/car.txt'
@@ -1238,6 +1158,7 @@ def main():
     carDivideSpeed = speedSplit()
     answer, speed_list = [], []
     dijTime = 0
+    vis_flag = False
     # crossMap = createCrossMap(crossInf, roadInf, roadIdBias)
 
     # 1. divide by speed
@@ -1251,17 +1172,21 @@ def main():
         curGroup = carDivideSpeed[speed]
         if not curGroup:
             continue
-
         groupDivideTime = timeSplit(curGroup, carPerSec, intervalTime, speed)
 
         for batch in groupDivideTime:
             batch_len = len(batch)
             while (CARDISTRIBUTION[1] > (carInMap - batch_len)):
+                # if TIME[0] > 305:
+                #     vis_flag = True
                 dead_flag = simulateStep()
-                # visualize.drawMap()           
+                if vis_flag:
+                    visualize.drawMap()
                 TIME[0] += 1
-                print(TIME[0])
+                print(TIME[0], CARDISTRIBUTION)
                 if dead_flag:
+                    visualize.dead_sign = True
+                    visualize.drawMap()
                     break
             if dead_flag:
                 break
@@ -1272,21 +1197,45 @@ def main():
             carPlan(batchPathTime)
             dijTime += time.time() - dij
             dead_flag = simulateStep()
-            # visualize.drawMap()
-            print(CARDISTRIBUTION)
+            if vis_flag:
+                visualize.drawMap()
             if dead_flag:
+                visualize.dead_sign = True
+                visualize.drawMap() 
                 break
             TIME[0] += 1
-            print(TIME[0])
+            print(TIME[0], CARDISTRIBUTION)
             answer += batchPathTime
         if dead_flag:
             break
+    while CARDISTRIBUTION[0] + CARDISTRIBUTION[1] != 0:
+        if dead_flag:
+            break        
+        dead_flag = simulateStep()
+        if vis_flag:
+            visualize.drawMap()
+    
+    if dead_flag:
+        return False
 
     with open(answer_path, 'w') as fp:
         fp.write('\n'.join(str(tuple(x)) for x in answer))
     print(dijTime)
 
+    return True
+
 if __name__ == "__main__":
     a = time.time()
-    main()
+    DELAYDICT = {}
+    finish_sign = False
+    while not finish_sign:
+        TIME = [0]
+        CARDISTRIBUTION = [0,0,0]
+        CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
+        CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
+        ROUTEMAP ={}
+        CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
+        ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
+        DEADLOCKNAMESPACE = [] 
+        finish_sign = main()
     print(time.time() - a)

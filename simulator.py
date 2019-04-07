@@ -412,6 +412,7 @@ class CROSS(object):
                     provider.firstPriorityCarAct(0)
                     CARDISTRIBUTION[1] -= 1
                     CARDISTRIBUTION[2] += 1
+                    
                     self.finishCarNum += 1
                     self.update = True
                 else:
