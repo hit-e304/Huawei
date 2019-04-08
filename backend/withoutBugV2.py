@@ -1098,7 +1098,6 @@ def printCrossLoss(roadInf, crossLoss, lossPath):
         fp.write('\n'.join(str(tuple(x)) for x in crossLossOutput)) 
 
 
-#%%
 def main():
 
     # car_path = sys.argv[1]

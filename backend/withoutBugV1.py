@@ -403,7 +403,7 @@ class Cross():
                 if nextRoad[provideIndex] == -1:
                     nextCarPriority.append(2)
                 else:
-                    nextCarPriority.append(self.prority(self.provider[provideIndex], nextRoad[provideIndex]))
+                    nextCarPriority.append(self.priority(self.provider[provideIndex], nextRoad[provideIndex]))
             else:
                 firstCar.append(-1)
                 nextRoad.append(-1)
@@ -443,7 +443,7 @@ class Cross():
                     if nextRoad[provideIndex] == -1:
                         nextCarPriority[provideIndex] = 2
                     else:
-                        nextCarPriority[provideIndex]= self.prority(self.provider[provideIndex], nextRoad[provideIndex])
+                        nextCarPriority[provideIndex]= self.priority(self.provider[provideIndex], nextRoad[provideIndex])
                 else:
                     firstCar[provideIndex] = -1
                     nextRoad[provideIndex]= -1
@@ -505,7 +505,7 @@ class Cross():
                 CARDISTRIBUTION[0] -= 1
                 CARDISTRIBUTION[1] += 1
     
-    def prority(self,providerId,receiverId):
+    def priority(self,providerId,receiverId):
         return self.priorityMap[providerId][receiverId]
     def setDone(self,bool):
         self.done = bool

@@ -7,20 +7,20 @@ import cv2 as cv
 import heap
 
 
-carPerSec = 50
+carPerSec = 80
 intervalTime = 1
-carInMap = 5000
-delta1 = 100
+carInMap = 3000
+delta1 = 80
 delta2 = 15
 
-# TIME = [0]
-# CARDISTRIBUTION = [0,0,0]
-# CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
-# CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
-# ROUTEMAP ={}
-# CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
-# ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
-# DEADLOCKNAMESPACE, DELAYDICT = [], {}
+TIME = [0]
+CARDISTRIBUTION = [0,0,0]
+CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
+CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
+ROUTEMAP ={}
+CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
+ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
+DEADLOCKNAMESPACE, DELAYDICT = [], {}
 
 def readInf(filename):
     outList = []
@@ -184,21 +184,7 @@ class Road():
             return 'forward'
         else:
             print('wrong crossID in chooseDirection')
-    # BUG: May cause bug
-    # def setBucket(self, crossId):
-    #     direction = self.chooseDirection(crossId)
-    #     if direction == 'forward':
-    #         self.provideTube, self.px, self.py = self.forwardTube, 0, 0
-    #         if self.isDuplex_:
-    #             self.receiveTube, self.provideNum, self.receiveNum = self.backwardTube, 0, 0
-    #         else:
-    #             self.receiveTube, self.receiveNum = None, None
-    #     else:
-    #         self.receiveTube, self.receiveNum = self.forwardTube, 0
-    #         if self.isDuplex_:
-    #             self.provideTube, self.px, self.py = self.backwardTube, 0, 0
-    #         else:
-    #             self.provideTube, self.px, self.py = None, None, None
+
     def setBucket(self,crossId):
         bucket = self.chooseDirection(crossId)
         if bucket == 'forward':
@@ -263,6 +249,15 @@ class Road():
                     car.updateParameter(state=2, x=previousCar)
                 else:
                     previousCar, previousState = i, 1
+
+        # ROADDICT[self.id_].setBucket(self.endId_)
+        # ROADDICT[self.id_].setBucket(self.startId_)
+        CROSSDICT[self.startId_].outOfPriCarport(self.id_)
+        # if self.isDuplex_:
+        #     for roadId in CROSSDICT[self.endId_].__getPar__('validRoad'):
+        #         ROADDICT[roadId].setBucket(self.startId_)
+        #     ROADDICT[self.id_].setBucket(self.endId_)
+        CROSSDICT[self.endId_].outOfPriCarport(self.id_)
     
     def searchCar(self, start, end, channel, tube):
         for i in range(end, start, -1):
@@ -272,7 +267,7 @@ class Road():
     
     def firstPriorityCar(self):
 
-        firstPriorityCar = [None] * self.channel_
+        firstPriorityCarX = [None] * self.channel_
         firstPriorityCarPoint = [-10000] * self.channel_
         for y in range(self.channel_):
             for x in range(self.length_):
@@ -282,7 +277,7 @@ class Road():
                     left = car.__getPar__('v')
                     priority = car.__getPar__('priority')              
                     if left > x and car.state == 1:
-                        firstPriorityCar[y] = x
+                        firstPriorityCarX[y] = x
                         firstPriorityCarPoint[y] = priority * 10000 - self.channel_ * y - x
                     break
 
@@ -290,7 +285,7 @@ class Road():
         for i in range(self.channel_):
             if firstPriorityCarPoint[i] > maxNum:
                 maxNum = firstPriorityCarPoint[i]
-                self.px, self.py = firstPriorityCar[i], i
+                self.px, self.py = firstPriorityCarX[i], i
         if maxNum == -10000:
             return -1
         else:
@@ -300,9 +295,9 @@ class Road():
     def firstPriorityCarAct(self, action):
         if action == 0:
             carId = self.provideTube[self.px][self.py]
-            self.provideTube[self.px][self.py] = None
             car = CARDICT[carId]
-            car.updateParameter(state=2)
+            car.updateParameter(state=2, x=self.px)
+            self.provideTube[self.px][self.py] = None
             self.provideNum -= 1
         elif action == 1:
             carId = self.provideTube[self.px][self.py]
@@ -432,40 +427,32 @@ class Cross():
                 nextRoad.append(-1)
                 nextCarPriority.append(-1)
         
-        roadNum = self.provider.__len__()
-        actionFlag = [0] * roadNum
-        for i in range(roadNum):
-            if self.provider[i] != -1:
-                provideIndex = i
-                break
-        # while (actionFlag[]不都为1 or firstCarId不都为-1):
-        while sum(actionFlag[:]) != roadNum and sum(firstCarId[:]) != -roadNum:
-            if(firstCarId[provideIndex] != -1):
-                for i in range(roadNum):
-                    # if conflict(same direction and low priority)
-                    if nextRoad[i] == nextRoad[provideIndex] and nextCarPriority[i] > nextCarPriority[provideIndex] and actionFlag[i] != 1:
-                        provideIndex = i
+        for provideIndex in range(self.provider.__len__()):
+            breakFlag = False
+            while firstCar[provideIndex] != -1:
+                # same next road and high priority lead to conflict
                 provider = ROADDICT[self.provider[provideIndex]]
+                for i in range(self.provider.__len__()):
+                    # if conflict(same direction and low priority)
+                    if nextRoad[i]==nextRoad[provideIndex] and nextCarPriority[i]>nextCarPriority[provideIndex]:
+                        breakFlag = True
+                        break
+                if breakFlag:
+                    break
                 if nextRoad[provideIndex] == -1:
                     provider.firstPriorityCarAct(0)
                     self.update = True
-                    CARDISTRIBUTION[1] -= 1
-                    CARDISTRIBUTION[2] += 1
+                    CARDISTRIBUTION[1]-=1
+                    CARDISTRIBUTION[2]+=1
                 else:
                     nextroad_ = ROADDICT[nextRoad[provideIndex]]
                     action = nextroad_.receiveCar(firstCar[provideIndex].__getPar__('id'))
                     if action == 2:
-                        #堵塞标志赋值
-                        actionFlag[provideIndex] = 1
-                        #找下一个provideIndex 并且把值赋给provideIndex
-                        provideIndex = (provideIndex + 1) % roadNum
-                        continue
+                        break
                     provider.firstPriorityCarAct(action)
                     self.update = True
                 firstCarId[provideIndex] = provider.firstPriorityCar()
-                if firstCarId[provideIndex] != -1:
-                    #换车后拥堵标志位清空
-                    actionFlag[provideIndex] = 0                                                                                                                                                                                                                                                                                                
+                if firstCarId[provideIndex] != -1:                                                                                                                                                                                                                                                                                                   
                     firstCar[provideIndex] = CARDICT[firstCarId[provideIndex]]
                     nextRoad[provideIndex] = firstCar[provideIndex].__getPar__('nextRoad')
                     # nextRoad == -1 => terminal
@@ -477,13 +464,9 @@ class Cross():
                     firstCar[provideIndex] = -1
                     nextRoad[provideIndex]= -1
                     nextCarPriority[provideIndex] = -1
-            else:
-                actionFlag[provideIndex] = 1
-                #找下一个provideIndex 并且把值赋给provideIndex
-                provideIndex = (provideIndex + 1) % roadNum
         done = True
-        for i in range(roadNum):
-            if firstCar[i] != -1:
+        for provideIndex in range(self.provider.__len__()):
+            if firstCar[provideIndex] != -1:
                 done = False
         self.done = done
 
@@ -513,12 +496,12 @@ class Cross():
                 CARDISTRIBUTION[0] -= 1
                 CARDISTRIBUTION[1] += 1
 
-    def outOfPriCarport(self):
+    def outOfPriCarport(self, curRoad=None):
         self.readyPriCars = self.priLeft
-        self.priLeft=[]
+        self.priLeft = []
         if TIME[0] in self.priCarport.keys():
             self.priCarport[TIME[0]].sort()
-            self.readyPriCars.extend(self.priCarport[TIME[0]])
+            self.readyPriCars.extend(self.priCarport.pop(TIME[0]))
         if self.readyPriCars.__len__() == 0:
             return
         self.readyPriCars.sort()
@@ -528,6 +511,8 @@ class Cross():
             carId = self.readyPriCars[i]
             roadId = CARDICT[carId].__getPar__('nextRoad')
             road = ROADDICT[roadId]
+            if curRoad and roadId != curRoad:
+                continue
             if roadId not in self.receiver:
                 print("Car(%d).Road(%d) not in cross(%d).function:class.outOfPriCarport"%(carId,roadId,self.id_))
             act = road.receiveCar(carId)
@@ -651,7 +636,7 @@ class visualization(object):
     # draw functions
     #
     def drawMap(self):
-        img = np.ones((self.maxX,self.maxY,3),np.uint8)*350
+        img = np.ones((self.maxX,self.maxY,3),np.uint8)*255
         #draw road
         for roadId in ROADNAMESPACE:
             self.plotRoad(roadId,img)
@@ -752,15 +737,6 @@ class visualization(object):
 
 
 def infInit(crossPath, roadPath, carPath, presetPath):
-
-    # TIME = [0]
-    # CARDISTRIBUTION = [0,0,0]
-    # CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
-    # CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
-    # ROUTEMAP ={}
-    # CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
-    # ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
-    # DEADLOCKNAMESPACE, DELAYDICT = [], {}
 
     crossInf = readInf(crossPath)
     roadInf = readInf(roadPath)
@@ -869,16 +845,20 @@ def simulateStep():
             print('dead lock in', unfinishedCross)
             for carId in CARNAMESPACE:
                 if CARDICT[carId].state == 1 and CARDICT[carId].preset_ == 0:
-                    DEADLOCKNAMESPACE.append(carId)
+                    DEADLOCKNAMESPACE.add(carId)
             deadLockNum = len(DEADLOCKNAMESPACE)
-            delayTime = 10
-            for i in range(deadLockNum):
+            delayTime = 50
+            for i, carId in enumerate(DEADLOCKNAMESPACE):
                 if i % 2 == 0:
-                    carId = DEADLOCKNAMESPACE[i]
                     try:
                         DELAYDICT[carId] += delayTime
                     except:
                         DELAYDICT[carId] = delayTime
+                else:
+                    try:
+                        DELAYDICT[carId] += 25
+                    except:
+                        DELAYDICT[carId] = 25
             print('%s cars dead lock, delay %s seconds' % (deadLockNum, delayTime))
             return deadSign
     for i in range(CROSSNAMESPACE.__len__()):
@@ -923,13 +903,13 @@ def timeSplit(group, carPerSec, intervalTime, speed):
     group_len = len(group)
 
     if speed in [1, 2]:
-        carPerBatch = carPerSec * intervalTime
+        carPerBatch = int(carPerSec * intervalTime * 1.5)
     elif speed in [3, 4]:
-        carPerBatch = int(carPerSec * intervalTime * 1.1)
+        carPerBatch = int(carPerSec * intervalTime * 1.3)
     elif speed in [5, 6]:
-        carPerBatch = int(carPerSec * intervalTime * 1.1)
+        carPerBatch = int(carPerSec * intervalTime * 1.0)
     else:
-        carPerBatch = int(carPerSec * intervalTime * 1.1) 
+        carPerBatch = int(carPerSec * intervalTime * 0.6)
 
     batch_num = int(group_len / carPerBatch) + 1
 
@@ -1133,7 +1113,6 @@ def printCrossLoss(roadInf, crossLoss, lossPath):
         fp.write('\n'.join(str(tuple(x)) for x in crossLossOutput)) 
 
 
-
 def main():
 
     # car_path = sys.argv[1]
@@ -1146,7 +1125,7 @@ def main():
     cross_path = '../' + relate_path + '/cross.txt'
     road_path = '../' + relate_path + '/road.txt'
     car_path = '../' + relate_path + '/car.txt'
-    answer_path = '../' + relate_path + '/answer1.txt'
+    answer_path = '../' + relate_path + '/answer.txt'
     preset_path = '../' + relate_path + '/presetAnswer.txt'
 
     presetInf = infInit(cross_path, road_path, car_path, preset_path)
@@ -1210,10 +1189,9 @@ def main():
             break
     while CARDISTRIBUTION[0] + CARDISTRIBUTION[1] != 0:
         if dead_flag:
-            break        
+            break
         dead_flag = simulateStep()
-        if vis_flag:
-            visualize.drawMap()
+        TIME[0] += 1
     
     if dead_flag:
         return False
@@ -1226,16 +1204,16 @@ def main():
 
 if __name__ == "__main__":
     a = time.time()
-    DELAYDICT = {}
     finish_sign = False
+    DELAYDICT = {}
     while not finish_sign:
         TIME = [0]
         CARDISTRIBUTION = [0,0,0]
         CARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
         CROSSDICT,CARDICT,ROADDICT ={},{},{} # save Object of each kind
         ROUTEMAP ={}
+        DEADLOCKNAMESPACE = set()
         CROSSROADDICT, CROSSLOSSDICT, CROSSLENGTHDICT = {}, {}, {} # {crossId: {crossId: roadId}} {crossId: {crossId: loss}}, {startId:{endId: length}}
         ROADLOSSDICT, ROADUSEDICT = {}, {} #{crossId: {crossId: loss}}
-        DEADLOCKNAMESPACE = [] 
         finish_sign = main()
     print(time.time() - a)
