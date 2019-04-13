@@ -1141,33 +1141,6 @@ def printCrossLoss(roadInf, crossLoss, lossPath):
         fp.write('\n'.join(str(tuple(x)) for x in crossLossOutput))
 
 
-def saveLog(logNum=5):
-    curTime = TIME[0]
-    LOGTIME.append(curTime)
-    for carId in UNPRESETCARNAMESPACE:
-        CARDICTLOG[curTime][carId] = CARDICT[carId]
-    for roadId in ROADNAMESPACE:
-        ROADDICTLOG[curTime][roadId] = ROADDICT[roadId]
-    for crossId in CROSSNAMESPACE:
-        CROSSDICTLOG[curTime][crossId] = CROSSDICT[crossId]
-    if len(LOGTIME) > logNum:
-        delTime = LOGTIME[0]
-        del(LOGTIME[0])
-        del(CARDICTLOG[delTime])
-        del(ROADDICTLOG[delTime])
-        del(CROSSDICTLOG[delTime])
-
-
-def loadLog():
-    backTime = LOGTIME[-2]
-    print('go back %s seconds' % (TIME[0] - backTime))
-    TIME[0] = backTime
-    global CARDICT, ROADDICT, CROSSDICT
-    CARDICT, ROADDICT, CROSSDICT = CARDICTLOG[backTime], ROADDICTLOG[backTime], CROSSDICTLOG[backTime]
-
-    pass
-
-
 def main():
 
     # car_path = sys.argv[1]
@@ -1190,7 +1163,6 @@ def main():
     carPlan(presetInf)
 
     answer= []
-    loopTime = 50
     dead_flag = False
     vis_flag = False
 
@@ -1199,8 +1171,6 @@ def main():
             dead_flag = simulateStep()
             if vis_flag:
                 visualize.drawMap()
-            if TIME[0] % loopTime == 0:
-                saveLog()
             print(TIME[0], CARDISTRIBUTION)
             TIME[0] += 1
             if dead_flag:
@@ -1238,7 +1208,6 @@ if __name__ == "__main__":
     a = time.time()
     finish_sign = False
     DELAYDICT = {}
-    CROSSDICTLOG, CARDICTLOG, ROADDICTLOG, LOGTIME = {}, {}, {}, []
     PRIORITYCARNAMESPACE, NORMALCARNAMESPACE = [], []
     LEFTPRIORITYCARNAMESPACE, LEFTNORMALCARNAMESPACE = [], []
     UNPRESETCARNAMESPACE, PRESETCARNAMESPACE, ROADNAMESPACE,CROSSNAMESPACE = [],[],[],[]  # save Id of each kind
