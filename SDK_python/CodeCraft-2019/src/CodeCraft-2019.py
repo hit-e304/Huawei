@@ -3,7 +3,7 @@ import numpy as np
 import time
 
 car_per_sec = 26
-interval_time = 1
+interval_time = 10
 car_in_map = 2000
 
 
@@ -82,11 +82,13 @@ def speed_split(car_inf):
     car_divide_speed = []
 
     # split car by speed, car_divide_speed[k] means car speed as k+1
-    for i in car_inf:
+    for i in car_inf:  # 求出最大速度
         if i[3] > max_speed:
             max_speed = i[3]
+
     for i in range(max_speed):
         car_divide_speed.append([])
+
     for i in car_inf:
         car_divide_speed[i[3] - 1].append(i[0])
 
@@ -264,15 +266,15 @@ def cal_cross_loss(cross_inf, road_inf):
 
 
 def main():
-    car_path = sys.argv[1]
-    road_path = sys.argv[2]
-    cross_path = sys.argv[3]
-    answer_path = sys.argv[4]
+    # car_path = sys.argv[1]
+    # road_path = sys.argv[2]
+    # cross_path = sys.argv[3]
+    # answer_path = sys.argv[4]
 
-    # cross_path = 'cross.txt'
-    # road_path = 'road.txt'
-    # car_path = 'car.txt'
-    # answer_path = 'answer.txt'
+    cross_path = 'cross.txt'
+    road_path = 'road.txt'
+    car_path = 'car.txt'
+    answer_path = 'answer.txt'
 
     cross_inf = read_inf(cross_path)
     road_inf = read_inf(road_path)
@@ -286,7 +288,7 @@ def main():
     all_time = 0
     car_id_bias = car_inf[0][0]
     road_id_bias = road_inf[0][0]
-    car_position = {}
+    car_position = {}  # 没用上
     answer = []
     speed_list = []
     final_time = []
